@@ -108,10 +108,10 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
             <h2 className="text-base font-semibold text-slate-900">
-              میزان حضور به تفکیک اعضای هیئت امنا
+              میزان حضور به تفکیک اعضای هیئت‌امنا
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              مجموع نفر-ساعت حضور نمایندگان منصوب هر عضو هیئت امنا
+              مجموع نفر-ساعت حضور نمایندگان منصوب هر عضو هیئت‌امنا
             </p>
           </div>
           <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">
@@ -121,7 +121,7 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
         {trusteeStats.length === 0 ? (
           <p className="text-sm text-slate-500 py-8 text-center">
-            عضو هیئت امنایی ثبت نشده است.
+            عضو هیئت‌امنایی ثبت نشده است.
           </p>
         ) : (
           <div className="space-y-4">

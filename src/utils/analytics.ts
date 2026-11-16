@@ -21,7 +21,7 @@ import {
   toPersianDigits,
 } from './jalali';
 
-export const COMMITTEES: Committee[] = [
+const DEFAULT_COMMITTEES: Committee[] = [
   {
     id: 'audit-budget',
     name: 'حسابرسی و بودجه',
@@ -54,6 +54,40 @@ export const COMMITTEES: Committee[] = [
   },
 ];
 
+export const COMMITTEES: Committee[] = [...DEFAULT_COMMITTEES];
+export const COMMITTEE_MAP: Record<string, Committee> = {};
+
+function rebuildCommitteeMap() {
+  Object.keys(COMMITTEE_MAP).forEach((key) => delete COMMITTEE_MAP[key]);
+  COMMITTEES.forEach((committee) => { COMMITTEE_MAP[committee.id] = committee; });
+}
+rebuildCommitteeMap();
+
+export function replaceCommittees(next: Committee[]) {
+  if (!Array.isArray(next) || next.length === 0) return;
+  COMMITTEES.splice(0, COMMITTEES.length, ...next);
+  rebuildCommitteeMap();
+}
+
+export function persistCommittees(next: Committee[]) {
+  replaceCommittees(next);
+  try {
+    const storage = typeof window !== 'undefined' ? (window.desktopStorage ?? window.localStorage) : null;
+    storage?.setItem('kargoroh_committees_v1', JSON.stringify(COMMITTEES));
+  } catch { /* keep current in-memory list */ }
+}
+
+export function loadSavedCommittees() {
+  try {
+    const storage = typeof window !== 'undefined' ? (window.desktopStorage ?? window.localStorage) : null;
+    const raw = storage?.getItem('kargoroh_committees_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw) as Committee[];
+      if (Array.isArray(parsed) && parsed.length) replaceCommittees(parsed);
+    }
+  } catch { /* use built-in committees */ }
+}
+
 export function getEffectiveTrusteeId(
   rep: Representative,
   committeeId?: CommitteeId
@@ -63,14 +97,6 @@ export function getEffectiveTrusteeId(
   }
   return rep.trusteeId;
 }
-
-export const COMMITTEE_MAP: Record<CommitteeId, Committee> = COMMITTEES.reduce(
-  (acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  },
-  {} as Record<CommitteeId, Committee>
-);
 
 export function parseTimeToMinutes(timeStr: string): number | null {
   const normalized = toEnglishDigits(timeStr.trim());
@@ -274,13 +300,7 @@ function createEmptyCommitteeBreakdown(): Record<
   CommitteeId,
   { sessions: number; minutes: number }
 > {
-  return {
-    'audit-budget': { sessions: 0, minutes: 0 },
-    'economy-investment': { sessions: 0, minutes: 0 },
-    'insurance-actuarial': { sessions: 0, minutes: 0 },
-    healthcare: { sessions: 0, minutes: 0 },
-    consolidation: { sessions: 0, minutes: 0 },
-  };
+  return Object.fromEntries(COMMITTEES.map((committee) => [committee.id, { sessions: 0, minutes: 0 }]));
 }
 
 export function computeRepresentativeStats(
@@ -473,6 +493,7 @@ export function serializeBackup(state: AppDatabaseState): string {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     appName: 'سامانه مدیریت جلسات کارگروه‌ها',
+    committees: COMMITTEES,
     trustees: state.trustees,
     representatives: state.representatives,
     sessions: state.sessions,
@@ -487,6 +508,9 @@ export function parseAndValidateBackup(
     const parsed = JSON.parse(jsonText) as Partial<AppDatabaseBackup>;
     if (!parsed || typeof parsed !== 'object') {
       return { ok: false, error: 'ساختار فایل پشتیبان معتبر نیست.' };
+    }
+    if (Array.isArray(parsed.committees) && parsed.committees.length && parsed.committees.every((c) => c && typeof c.id === 'string' && typeof c.name === 'string')) {
+      replaceCommittees(parsed.committees);
     }
     if (
       !Array.isArray(parsed.trustees) ||
@@ -549,6 +573,7 @@ export function parseAndValidateBackup(
           typeof parsed.appName === 'string'
             ? parsed.appName
             : 'سامانه مدیریت جلسات کارگروه‌ها',
+        committees: Array.isArray(parsed.committees) && parsed.committees.length ? parsed.committees : COMMITTEES,
         trustees: parsed.trustees,
         representatives: parsed.representatives,
         sessions: parsed.sessions,
@@ -563,7 +588,7 @@ export function parseAndValidateBackup(
 }
 
 export function encodeSharePayload(state: AppDatabaseState): string {
-  const json = JSON.stringify(state);
+  const json = JSON.stringify({ ...state, committees: COMMITTEES });
   const bytes = new TextEncoder().encode(json);
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) {
@@ -594,6 +619,7 @@ export function decodeSharePayload(encoded: string): AppDatabaseState | null {
       return null;
     }
     return {
+      committees: Array.isArray(parsed.committees) ? parsed.committees : COMMITTEES,
       trustees: parsed.trustees,
       representatives: parsed.representatives,
       sessions: parsed.sessions,

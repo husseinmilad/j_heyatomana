@@ -1,9 +1,4 @@
-export type CommitteeId =
-  | 'audit-budget'
-  | 'economy-investment'
-  | 'insurance-actuarial'
-  | 'healthcare'
-  | 'consolidation';
+export type CommitteeId = string;
 
 export interface Committee {
   id: CommitteeId;
@@ -41,6 +36,10 @@ export interface MeetingSession {
   durationMinutes: number;
   topic: string;
   reportSummary: string;
+  letterNumber?: string;
+  attachmentName?: string;
+  attachmentType?: string;
+  attachmentData?: string;
   attendees: SessionAttendance[];
   createdAt: string;
 }
@@ -55,6 +54,7 @@ export interface FilterState {
 }
 
 export interface AppDatabaseState {
+  committees?: Committee[];
   trustees: Trustee[];
   representatives: Representative[];
   sessions: MeetingSession[];

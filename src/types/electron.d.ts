@@ -3,3 +3,5 @@ interface Window {
     readonly length: number;
   };
 }
+
+interface Window { desktopPrint?: () => void; }

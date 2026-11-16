@@ -22,7 +22,6 @@ import {
   formatMinutesToClock,
   formatMinutesToPersian,
 } from '../utils/analytics';
-import { generateExecutiveShareText } from '../utils/exporters';
 import { formatJalaliReadable, getTodayJalali, toPersianDigits } from '../utils/jalali';
 
 interface ShareAndPdfModalProps {
@@ -49,6 +48,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   onExportExcel,
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
+  const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, committees: true, sessions: true });
 
   if (!isOpen) return null;
 
@@ -56,11 +56,23 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   const totalSessionMins = sessions.reduce((s, x) => s + x.durationMinutes, 0);
   const totalPersonMins = repStats.reduce((s, r) => s + r.totalMinutes, 0);
 
+  const buildSelectedShareText = () => {
+    const lines: string[] = [`گزارش جلسات کارگروه‌ها · ${toPersianDigits(today)}`];
+    if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
+    if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
+    if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
+    if (printParts.committees) lines.push('آمار کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
+    if (printParts.sessions) lines.push('فهرست جلسات:', ...sessions.map((session) => `${toPersianDigits(session.jalaliDate)} · ${COMMITTEE_MAP[session.committeeId]?.name ?? ''} · ${session.topic}`));
+    return lines.join('\n');
+  };
+
   const buildShareUrl = () => {
+    const needsSessions = printParts.summary || printParts.committees || printParts.sessions;
+    const needsPeople = printParts.trustees || printParts.representatives;
     const encoded = encodeSharePayload({
-      trustees,
-      representatives,
-      sessions,
+      trustees: needsPeople ? trustees : [],
+      representatives: needsPeople ? representatives : [],
+      sessions: needsSessions ? sessions : [],
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
@@ -68,12 +80,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const handleCopyText = async () => {
-    const text = generateExecutiveShareText({
-      sessions,
-      repStats,
-      trusteeStats,
-      committeeStats,
-    });
+    const text = buildSelectedShareText();
     try {
       await navigator.clipboard.writeText(text);
       setCopiedType('text');
@@ -95,12 +102,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const handleNativeShare = async () => {
-    const text = generateExecutiveShareText({
-      sessions,
-      repStats,
-      trusteeStats,
-      committeeStats,
-    });
+    const text = buildSelectedShareText();
     if (navigator.share) {
       try {
         await navigator.share({
@@ -117,7 +119,8 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const handlePrintPdf = () => {
-    window.print();
+    if (window.desktopPrint) window.desktopPrint();
+    else window.print();
   };
 
   return (
@@ -141,6 +144,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
               نسخه رسمی قابل چاپ با فونت وزیر، اشتراک‌گذاری متنی یا لینک گزارش
             </p>
           </div>
+          <div className="no-print flex flex-wrap gap-3 px-6 py-3 border-b border-slate-200 text-xs text-slate-700"><span className="font-semibold">بخش‌های خروجی:</span><label><input type="checkbox" checked={printParts.summary} onChange={(e) => setPrintParts((p) => ({ ...p, summary: e.target.checked }))} /> خلاصه</label><label><input type="checkbox" checked={printParts.trustees} onChange={(e) => setPrintParts((p) => ({ ...p, trustees: e.target.checked }))} /> اعضای هیئت‌امنا</label><label><input type="checkbox" checked={printParts.representatives} onChange={(e) => setPrintParts((p) => ({ ...p, representatives: e.target.checked }))} /> نمایندگان</label><label><input type="checkbox" checked={printParts.committees} onChange={(e) => setPrintParts((p) => ({ ...p, committees: e.target.checked }))} /> کارگروه‌ها</label><label><input type="checkbox" checked={printParts.sessions} onChange={(e) => setPrintParts((p) => ({ ...p, sessions: e.target.checked }))} /> فهرست جلسات</label></div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -212,7 +216,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b-2 border-slate-900">
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">
-                گزارش مدیریتی جلسات کارگروه‌های تخصصی و حضور نمایندگان هیئت امنا
+                گزارش مدیریتی جلسات کارگروه‌های تخصصی و حضور نمایندگان هیئت‌امنا
               </h1>
               <p className="text-xs text-slate-600 mt-1">
                 حسابرسی و بودجه · اقتصاد و سرمایه‌گذاری · بیمه و محاسبات اکچوئری · بهداشت و درمان
@@ -235,7 +239,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Summary Totals */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className={printParts.summary ? "grid grid-cols-3 gap-4" : "hidden"}>
             <div className="rounded-lg border border-slate-200 p-3.5">
               <span className="text-[11px] text-slate-500 block">
                 تعداد جلسات گزارش
@@ -263,14 +267,14 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Trustee Breakdown Table */}
-          <div>
+          <div className={printParts.trustees ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
-              ۱. آمار جلسات و ساعات حضور به تفکیک اعضای هیئت امنا
+              ۱. آمار جلسات و ساعات حضور به تفکیک اعضای هیئت‌امنا
             </h3>
             <table className="w-full text-right border-collapse border border-slate-200 text-xs">
               <thead>
                 <tr className="bg-slate-100 text-slate-700">
-                  <th className="border border-slate-200 py-2 px-3">عضو هیئت امنا</th>
+                  <th className="border border-slate-200 py-2 px-3">عضو هیئت‌امنا</th>
                   <th className="border border-slate-200 py-2 px-3">نمایندگان</th>
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
@@ -303,7 +307,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Representative Breakdown Table */}
-          <div>
+          <div className={printParts.representatives ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
               ۲. آمار جلسات و ساعات حضور به تفکیک هر نماینده
             </h3>
@@ -312,7 +316,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                 <tr className="bg-slate-100 text-slate-700">
                   <th className="border border-slate-200 py-2 px-3">نام نماینده</th>
                   <th className="border border-slate-200 py-2 px-3">
-                    نماینده عضو هیئت امنا
+                    نماینده عضو هیئت‌امنا
                   </th>
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
@@ -345,10 +349,18 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
             </table>
           </div>
 
+          <div className={printParts.committees ? "" : "hidden"}>
+            <h3 className="text-sm font-bold text-slate-900 mb-2">۳. آمار به تفکیک کارگروه‌ها</h3>
+            <table className="w-full text-right border-collapse border border-slate-200 text-xs">
+              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-2 px-3">کارگروه</th><th className="border border-slate-200 py-2 px-3">تعداد جلسات</th><th className="border border-slate-200 py-2 px-3">مجموع زمان جلسات</th><th className="border border-slate-200 py-2 px-3">نفر-ساعت حضور</th></tr></thead>
+              <tbody>{committeeStats.map((st) => <tr key={st.committee.id}><td className="border border-slate-200 py-2 px-3">{st.committee.name}</td><td className="border border-slate-200 py-2 px-3">{toPersianDigits(st.sessionCount)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalSessionMinutes)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalPersonMinutes)}</td></tr>)}</tbody>
+            </table>
+          </div>
+
           {/* Committee & Sessions Summary */}
-          <div>
+          <div className={printParts.sessions ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
-              ۳. فهرست جلسات ({toPersianDigits(sessions.length)} جلسه)
+              ۴. فهرست جلسات ({toPersianDigits(sessions.length)} جلسه)
             </h3>
             <table className="w-full text-right border-collapse border border-slate-200 text-xs">
               <thead>

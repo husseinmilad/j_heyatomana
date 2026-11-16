@@ -113,7 +113,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {toPersianDigits(
               repStats.filter((r) => r.sessionCount > 0).length
             )}{' '}
-            نماینده فعال از {toPersianDigits(trustees.length)} عضو هیئت امنا
+            نماینده فعال از {toPersianDigits(trustees.length)} عضو هیئت‌امنا
           </p>
         </div>
 
@@ -159,7 +159,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 خلاصه حضور نمایندگان
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                بر اساس مجموع ساعات حضور و عضو هیئت امنای متبوع
+                بر اساس مجموع ساعات حضور و عضو هیئت‌امنای متبوع
               </p>
             </div>
             <button
@@ -181,7 +181,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-xs font-medium text-slate-500">
                     <th className="py-2.5 px-4">نماینده</th>
-                    <th className="py-2.5 px-4">عضو هیئت امنا</th>
+                    <th className="py-2.5 px-4">عضو هیئت‌امنا</th>
                     <th className="py-2.5 px-4 text-left">تعداد جلسات</th>
                     <th className="py-2.5 px-4 text-left">ساعت حضور</th>
                   </tr>

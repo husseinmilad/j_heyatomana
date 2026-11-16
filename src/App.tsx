@@ -30,11 +30,15 @@ import {
   Trustee,
 } from './types';
 import {
+  COMMITTEES,
   computeCommitteeStats,
   computeMonthlyTrend,
   computeRepresentativeStats,
   computeTrusteeStats,
   decodeSharePayload,
+  loadSavedCommittees,
+  persistCommittees,
+  replaceCommittees,
   filterSessions,
   parseAndValidateBackup,
 } from './utils/analytics';
@@ -51,12 +55,14 @@ function loadInitialState(): {
   db: AppDatabaseState;
   isSharedMode: boolean;
 } {
+  loadSavedCommittees();
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
     const sharedParam = params.get('share');
     if (sharedParam) {
       const decoded = decodeSharePayload(sharedParam);
       if (decoded) {
+        if (decoded.committees?.length) replaceCommittees(decoded.committees);
         return { db: decoded, isSharedMode: true };
       }
     }
@@ -66,8 +72,10 @@ function loadInitialState(): {
       if (saved) {
         const validated = parseAndValidateBackup(saved);
         if (validated.ok) {
+          if (validated.data.committees?.length) persistCommittees(validated.data.committees);
           return {
             db: {
+              committees: validated.data.committees,
               trustees: validated.data.trustees,
               representatives: validated.data.representatives,
               sessions: validated.data.sessions,
@@ -134,7 +142,7 @@ export default function App() {
         db.representatives,
         db.trustees
       ),
-    [filteredSessions, db.representatives, db.trustees]
+    [filteredSessions, db.representatives, db.trustees, db.committees]
   );
 
   const trusteeStats = useMemo(
@@ -144,8 +152,8 @@ export default function App() {
   );
 
   const committeeStats = useMemo(
-    () => computeCommitteeStats(filteredSessions),
-    [filteredSessions]
+    () => computeCommitteeStats(filteredSessions, db.committees ?? COMMITTEES),
+    [filteredSessions, db.committees]
   );
 
   const monthlyTrend = useMemo(
@@ -192,7 +200,7 @@ export default function App() {
   const handleAddTrustee = (data: Omit<Trustee, 'id'>) => {
     const newTrustee: Trustee = { ...data, id: `tr-${Date.now()}` };
     setDb((prev) => ({ ...prev, trustees: [...prev.trustees, newTrustee] }));
-    showToast('عضو هیئت امنای جدید اضافه شد.');
+    showToast('عضو هیئت‌امنای جدید اضافه شد.');
   };
 
   const handleUpdateTrustee = (updated: Trustee) => {
@@ -200,7 +208,7 @@ export default function App() {
       ...prev,
       trustees: prev.trustees.map((t) => (t.id === updated.id ? updated : t)),
     }));
-    showToast('اطلاعات عضو هیئت امنا به‌روزرسانی شد.');
+    showToast('اطلاعات عضو هیئت‌امنا به‌روزرسانی شد.');
   };
 
   const handleDeleteTrustee = (id: string) => {
@@ -208,7 +216,7 @@ export default function App() {
       ...prev,
       trustees: prev.trustees.filter((t) => t.id !== id),
     }));
-    showToast('عضو هیئت امنا حذف شد.');
+    showToast('عضو هیئت‌امنا حذف شد.');
   };
 
   // Representative CRUD
@@ -241,6 +249,7 @@ export default function App() {
 
   // Backup & Restore
   const handleRestoreReplace = (data: AppDatabaseState) => {
+    if (data.committees?.length) persistCommittees(data.committees);
     setDb(data);
     showToast('داده‌های فایل پشتیبان جایگزین شد.');
   };
@@ -607,6 +616,8 @@ export default function App() {
               onUpdateRepresentative={handleUpdateRepresentative}
               onDeleteRepresentative={handleDeleteRepresentative}
               isReadOnlyShared={isSharedMode}
+              usedCommitteeIds={[...new Set(db.sessions.map((session) => session.committeeId))]}
+              onCommitteesChange={() => { setDb((prev) => ({ ...prev, committees: [...COMMITTEES] })); showToast('فهرست کارگروه‌ها ذخیره شد.'); }}
             />
           )}
         </main>

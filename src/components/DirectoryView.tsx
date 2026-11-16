@@ -5,7 +5,7 @@ import {
   Representative,
   Trustee,
 } from '../types';
-import { COMMITTEES, getEffectiveTrusteeId } from '../utils/analytics';
+import { COMMITTEES, getEffectiveTrusteeId, persistCommittees } from '../utils/analytics';
 import { toPersianDigits } from '../utils/jalali';
 
 interface DirectoryViewProps {
@@ -18,6 +18,8 @@ interface DirectoryViewProps {
   onUpdateRepresentative: (rep: Representative) => void;
   onDeleteRepresentative: (id: string) => void;
   isReadOnlyShared?: boolean;
+  usedCommitteeIds?: string[];
+  onCommitteesChange?: () => void;
 }
 
 export const DirectoryView: React.FC<DirectoryViewProps> = ({
@@ -30,12 +32,18 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   onUpdateRepresentative,
   onDeleteRepresentative,
   isReadOnlyShared = false,
+  usedCommitteeIds = [],
+  onCommitteesChange,
 }) => {
   // Trustee form state
   const [editingTrusteeId, setEditingTrusteeId] = useState<string | null>(null);
   const [trusteeName, setTrusteeName] = useState('');
   const [trusteePosition, setTrusteePosition] = useState('');
   const [trusteeError, setTrusteeError] = useState('');
+  const [committeeName, setCommitteeName] = useState('');
+  const [committeeDescription, setCommitteeDescription] = useState('');
+  const [editingCommitteeId, setEditingCommitteeId] = useState<string | null>(null);
+  const [committeeError, setCommitteeError] = useState('');
 
   // Representative form state
   const [editingRepId, setEditingRepId] = useState<string | null>(null);
@@ -49,10 +57,39 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
 
   const trusteeMap = new Map(trustees.map((t) => [t.id, t]));
 
+  const saveCommittee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (committeeName.trim().length < 2) { setCommitteeError('نام کارگروه را وارد کنید.'); return; }
+    const next = COMMITTEES.map((c) => c.id === editingCommitteeId
+      ? { ...c, name: committeeName.trim(), description: committeeDescription.trim() }
+      : c);
+    if (!editingCommitteeId) next.push({
+      id: `committee-${Date.now()}`,
+      name: committeeName.trim(),
+      description: committeeDescription.trim(),
+      accentColor: '#0F766E',
+    });
+    persistCommittees(next);
+    setCommitteeName(''); setCommitteeDescription(''); setEditingCommitteeId(null); setCommitteeError('');
+    onCommitteesChange?.();
+  };
+
+  const editCommittee = (committee: (typeof COMMITTEES)[number]) => {
+    setEditingCommitteeId(committee.id); setCommitteeName(committee.name); setCommitteeDescription(committee.description);
+  };
+
+  const deleteCommittee = (id: string) => {
+    const usedByRepresentative = representatives.some((r) => r.committeeIds.includes(id));
+    if (usedByRepresentative || usedCommitteeIds.includes(id)) { setCommitteeError('این کارگروه در سوابق نمایندگان یا جلسات استفاده شده است؛ ابتدا سوابق وابسته را اصلاح کنید.'); return; }
+    if (!window.confirm('این کارگروه حذف شود؟')) return;
+    persistCommittees(COMMITTEES.filter((c) => c.id !== id));
+    onCommitteesChange?.();
+  };
+
   const handleSaveTrustee = (e: React.FormEvent) => {
     e.preventDefault();
     if (trusteeName.trim().length < 2) {
-      setTrusteeError('نام عضو هیئت امنا را وارد کنید.');
+      setTrusteeError('نام عضو هیئت‌امنا را وارد کنید.');
       return;
     }
     setTrusteeError('');
@@ -128,9 +165,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
     <div className="space-y-6">
       {/* 4 Committees Overview */}
       <section>
-        <h2 className="text-base font-semibold text-slate-900 mb-3">
-          کارگروه‌های تخصصی و نمایندگان منصوب
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><h2 className="text-base font-semibold text-slate-900">کارگروه‌های تخصصی و نمایندگان منصوب</h2>{!isReadOnlyShared && <form onSubmit={saveCommittee} className="flex flex-wrap gap-2"><input value={committeeName} onChange={(e) => setCommitteeName(e.target.value)} placeholder="نام کارگروه جدید / ویرایش" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><input value={committeeDescription} onChange={(e) => setCommitteeDescription(e.target.value)} placeholder="شرح حوزه فعالیت" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><button className="rounded-lg bg-teal-700 px-3 py-2 text-xs text-white">{editingCommitteeId ? 'ذخیره ویرایش' : 'افزودن کارگروه'}</button>{editingCommitteeId && <button type="button" onClick={() => {setEditingCommitteeId(null);setCommitteeName('');setCommitteeDescription('');}} className="rounded-lg border px-3 py-2 text-xs">انصراف</button>}</form>}</div>{committeeError && <p className="mb-2 text-xs text-red-600">{committeeError}</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {COMMITTEES.map((committee) => {
             const members = representatives.filter((r) =>
@@ -149,13 +184,9 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     >
                       {committee.name}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {committee.description}
-                    </p>
+                    <p className="text-xs text-slate-500 mt-1">{committee.description}</p>
                   </div>
-                  <span className="text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">
-                    {toPersianDigits(members.length)} نماینده
-                  </span>
+                  <div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">{toPersianDigits(members.length)} نماینده</span>{!isReadOnlyShared && <><button type="button" onClick={() => editCommittee(committee)} className="text-xs text-teal-700">ویرایش</button><button type="button" onClick={() => deleteCommittee(committee.id)} className="text-xs text-red-600">حذف</button></>}</div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
@@ -202,10 +233,10 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
         <section className="lg:col-span-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200">
             <h2 className="text-base font-semibold text-slate-900">
-              اعضای هیئت امنا ({toPersianDigits(trustees.length)})
+              اعضای هیئت‌امنا ({toPersianDigits(trustees.length)})
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              اسامی اعضای هیئت امنا و جایگاه سازمانی
+              اسامی اعضای هیئت‌امنا و جایگاه سازمانی
             </p>
           </div>
 
@@ -243,7 +274,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     type="text"
                     value={trusteePosition}
                     onChange={(e) => setTrusteePosition(e.target.value)}
-                    placeholder="عضو هیئت امنا"
+                    placeholder="عضو هیئت‌امنا"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-teal-700"
                   />
                 </div>
@@ -257,7 +288,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                   className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  {editingTrusteeId ? 'به‌روزرسانی عضو' : 'افزودن عضو هیئت امنا'}
+                  {editingTrusteeId ? 'به‌روزرسانی عضو' : 'افزودن عضو هیئت‌امنا'}
                 </button>
                 {editingTrusteeId && (
                   <button
@@ -291,7 +322,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                       {t.fullName}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
-                      {t.position || 'عضو هیئت امنا'} ·{' '}
+                      {t.position || 'عضو هیئت‌امنا'} ·{' '}
                       {toPersianDigits(repCount)} نماینده
                     </p>
                   </div>
@@ -312,7 +343,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                         title={
                           repCount > 0
                             ? 'ابتدا نمایندگان این عضو را ویرایش یا حذف کنید'
-                            : 'حذف عضو هیئت امنا'
+                            : 'حذف عضو هیئت‌امنا'
                         }
                         aria-label={`حذف ${t.fullName}`}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:pointer-events-none"
@@ -334,7 +365,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
               نمایندگان کارگروه‌ها ({toPersianDigits(representatives.length)})
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              تعیین نماینده، کارگروه‌های عضویت و انتساب به عضو هیئت امنا
+              تعیین نماینده، کارگروه‌های عضویت و انتساب به عضو هیئت‌امنا
             </p>
           </div>
 
@@ -381,7 +412,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     htmlFor="rep-trustee-select"
                     className="block text-[11px] font-medium text-slate-600 mb-1"
                   >
-                    نماینده کدام عضو هیئت امنا؟
+                    نماینده کدام عضو هیئت‌امنا؟
                   </label>
                   <select
                     id="rep-trustee-select"
@@ -389,7 +420,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     onChange={(e) => setRepTrusteeId(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-teal-700"
                   >
-                    <option value="">بدون انتساب (مشاور / مستقل)</option>
+                    <option value="">بدون انتساب</option>
                     {trustees.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.fullName}
@@ -458,7 +489,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
                   <th className="py-2.5 px-4">نماینده</th>
-                  <th className="py-2.5 px-4">عضو هیئت امنای متبوع</th>
+                  <th className="py-2.5 px-4">عضو هیئت‌امنای متبوع</th>
                   <th className="py-2.5 px-4">کارگروه‌ها</th>
                   {!isReadOnlyShared && (
                     <th className="py-2.5 px-4 text-left">عملیات</th>
@@ -486,7 +517,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                       <td className="py-3 px-4 text-xs font-medium text-slate-800">
                         {rep.committeeTrusteeOverrides
                           ? 'سیفی (تلفیق) · بیات (بیمه و اکچوئری)'
-                          : trustee?.fullName ?? 'بدون انتساب (مشاور / مستقل)'}
+                          : trustee?.fullName ?? 'بدون انتساب'}
                       </td>
                       <td className="py-3 px-4 text-xs text-slate-600">
                         {rep.committeeIds

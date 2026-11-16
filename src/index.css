@@ -41,6 +41,9 @@
     display: none !important;
   }
 
+  .print-only-container { display: block !important; visibility: visible !important; }
+  .print-only-container .hidden { display: none !important; }
+
   .print-only-container {
     display: block !important;
     position: static !important;
