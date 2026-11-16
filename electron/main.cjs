@@ -27,6 +27,14 @@ function writeStore(value) {
 
 let store = {};
 
+ipcMain.on('desktop-print', (event) => {
+  const target = BrowserWindow.fromWebContents(event.sender);
+  if (!target || target.isDestroyed()) return;
+  target.webContents.print({ silent: false, printBackground: true, color: true }, (success, failureReason) => {
+    if (!success) console.error('Print failed:', failureReason);
+  });
+});
+
 ipcMain.on('desktop-store:get', (event, key) => {
   event.returnValue = Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
 });
