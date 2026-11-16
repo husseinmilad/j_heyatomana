@@ -389,7 +389,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     onChange={(e) => setRepTrusteeId(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-teal-700"
                   >
-                    <option value="">بدون انتساب (مشاور / مستقل)</option>
+                    <option value="">بدون انتساب</option>
                     {trustees.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.fullName}
