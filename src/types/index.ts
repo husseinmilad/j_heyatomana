@@ -1,9 +1,4 @@
-export type CommitteeId =
-  | 'audit-budget'
-  | 'economy-investment'
-  | 'insurance-actuarial'
-  | 'healthcare'
-  | 'consolidation';
+export type CommitteeId = string;
 
 export interface Committee {
   id: CommitteeId;
