@@ -43,6 +43,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
   const [endTime, setEndTime] = useState<string>('11:00');
   const [topic, setTopic] = useState<string>('');
   const [reportSummary, setReportSummary] = useState<string>('');
+  const [letterNumber, setLetterNumber] = useState<string>('');
+  const [attachmentName, setAttachmentName] = useState<string>('');
+  const [attachmentType, setAttachmentType] = useState<string>('');
+  const [attachmentData, setAttachmentData] = useState<string>('');
   const [attendees, setAttendees] = useState<SessionAttendance[]>([]);
   const [showAllReps, setShowAllReps] = useState<boolean>(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -58,6 +62,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
       setEndTime(editingSession.endTime);
       setTopic(editingSession.topic);
       setReportSummary(editingSession.reportSummary);
+      setLetterNumber(editingSession.letterNumber ?? '');
+      setAttachmentName(editingSession.attachmentName ?? '');
+      setAttachmentType(editingSession.attachmentType ?? '');
+      setAttachmentData(editingSession.attachmentData ?? '');
       setAttendees(editingSession.attendees);
       // Show all reps if any attendee isn't normally in this committee
       const hasExternal = editingSession.attendees.some((a) => {
@@ -72,6 +80,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
       setEndTime('11:00');
       setTopic('');
       setReportSummary('');
+      setLetterNumber('');
+      setAttachmentName('');
+      setAttachmentType('');
+      setAttachmentData('');
       setAttendees([]);
       setShowAllReps(false);
     }
@@ -170,6 +182,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
         durationMinutes,
         topic: topic.trim(),
         reportSummary: reportSummary.trim(),
+        letterNumber: letterNumber.trim() || undefined,
+        attachmentName: attachmentName || undefined,
+        attachmentType: attachmentType || undefined,
+        attachmentData: attachmentData || undefined,
         attendees: cleanedAttendees,
       },
       editingSession?.id
@@ -341,6 +357,26 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
               placeholder="شرح مختصر تصمیمات، مصوبات یا نکات کلیدی گزارش..."
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-700"
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="session-letter-number" className="block text-xs font-medium text-slate-700 mb-1.5">شماره نامه جلسه (اختیاری)</label>
+              <input id="session-letter-number" type="text" value={letterNumber} onChange={(e) => setLetterNumber(e.target.value)} placeholder="شماره نامه" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label htmlFor="session-attachment" className="block text-xs font-medium text-slate-700 mb-1.5">تصویر یا PDF صورتجلسه (اختیاری، حداکثر ۱۰ مگابایت)</label>
+              <input id="session-attachment" type="file" accept="application/pdf,image/*" className="w-full text-xs" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 10 * 1024 * 1024) { setErrors((prev) => ({ ...prev, attachment: 'حجم فایل نباید بیشتر از ۱۰ مگابایت باشد.' })); e.target.value = ''; return; }
+                const reader = new FileReader();
+                reader.onload = () => { setAttachmentData(String(reader.result ?? '')); setAttachmentName(file.name); setAttachmentType(file.type); setErrors((prev) => ({ ...prev, attachment: '' })); };
+                reader.readAsDataURL(file);
+              }} />
+              {attachmentName && <div className="mt-1 flex items-center gap-2 text-xs text-teal-700"><span>{attachmentName}</span><button type="button" onClick={() => { setAttachmentName(''); setAttachmentType(''); setAttachmentData(''); }} className="text-red-600">حذف پیوست</button></div>}
+              {errors.attachment && <p className="mt-1 text-xs text-red-600">{errors.attachment}</p>}
+            </div>
           </div>
 
           {/* Attendees */}
