@@ -36,6 +36,8 @@ import {
   computeTrusteeStats,
   decodeSharePayload,
   loadSavedCommittees,
+  persistCommittees,
+  replaceCommittees,
   filterSessions,
   parseAndValidateBackup,
 } from './utils/analytics';
@@ -59,6 +61,7 @@ function loadInitialState(): {
     if (sharedParam) {
       const decoded = decodeSharePayload(sharedParam);
       if (decoded) {
+        if (decoded.committees?.length) replaceCommittees(decoded.committees);
         return { db: decoded, isSharedMode: true };
       }
     }
@@ -68,8 +71,10 @@ function loadInitialState(): {
       if (saved) {
         const validated = parseAndValidateBackup(saved);
         if (validated.ok) {
+          if (validated.data.committees?.length) persistCommittees(validated.data.committees);
           return {
             db: {
+              committees: validated.data.committees,
               trustees: validated.data.trustees,
               representatives: validated.data.representatives,
               sessions: validated.data.sessions,
@@ -243,6 +248,7 @@ export default function App() {
 
   // Backup & Restore
   const handleRestoreReplace = (data: AppDatabaseState) => {
+    if (data.committees?.length) persistCommittees(data.committees);
     setDb(data);
     showToast('داده‌های فایل پشتیبان جایگزین شد.');
   };
