@@ -26,8 +26,4 @@ const desktopStorage = {
   }
 };
 
-Object.defineProperty(window, 'localStorage', {
-  configurable: true,
-  enumerable: true,
-  value: desktopStorage
-});
+contextBridge.exposeInMainWorld('desktopStorage', desktopStorage);
