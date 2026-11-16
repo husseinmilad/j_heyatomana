@@ -609,6 +609,7 @@ export default function App() {
               onUpdateRepresentative={handleUpdateRepresentative}
               onDeleteRepresentative={handleDeleteRepresentative}
               isReadOnlyShared={isSharedMode}
+              onCommitteesChange={() => showToast('فهرست کارگروه‌ها ذخیره شد.')}
             />
           )}
         </main>
