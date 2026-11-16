@@ -493,6 +493,7 @@ export function serializeBackup(state: AppDatabaseState): string {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     appName: 'سامانه مدیریت جلسات کارگروه‌ها',
+    committees: COMMITTEES,
     trustees: state.trustees,
     representatives: state.representatives,
     sessions: state.sessions,
@@ -569,6 +570,7 @@ export function parseAndValidateBackup(
           typeof parsed.appName === 'string'
             ? parsed.appName
             : 'سامانه مدیریت جلسات کارگروه‌ها',
+        committees: Array.isArray(parsed.committees) && parsed.committees.length ? parsed.committees : COMMITTEES,
         trustees: parsed.trustees,
         representatives: parsed.representatives,
         sessions: parsed.sessions,
@@ -583,7 +585,7 @@ export function parseAndValidateBackup(
 }
 
 export function encodeSharePayload(state: AppDatabaseState): string {
-  const json = JSON.stringify(state);
+  const json = JSON.stringify({ ...state, committees: COMMITTEES });
   const bytes = new TextEncoder().encode(json);
   let binary = '';
   for (let i = 0; i < bytes.length; i += 1) {
@@ -614,6 +616,7 @@ export function decodeSharePayload(encoded: string): AppDatabaseState | null {
       return null;
     }
     return {
+      committees: Array.isArray(parsed.committees) ? parsed.committees : COMMITTEES,
       trustees: parsed.trustees,
       representatives: parsed.representatives,
       sessions: parsed.sessions,
