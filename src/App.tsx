@@ -35,6 +35,7 @@ import {
   computeRepresentativeStats,
   computeTrusteeStats,
   decodeSharePayload,
+  loadSavedCommittees,
   filterSessions,
   parseAndValidateBackup,
 } from './utils/analytics';
@@ -51,6 +52,7 @@ function loadInitialState(): {
   db: AppDatabaseState;
   isSharedMode: boolean;
 } {
+  loadSavedCommittees();
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
     const sharedParam = params.get('share');
