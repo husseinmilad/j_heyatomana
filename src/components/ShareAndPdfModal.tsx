@@ -63,7 +63,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
     if (printParts.committees) lines.push('آمار کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
     if (printParts.sessions) lines.push('فهرست جلسات:', ...sessions.map((session) => `${toPersianDigits(session.jalaliDate)} · ${COMMITTEE_MAP[session.committeeId]?.name ?? ''} · ${session.topic}`));
-    return lines.join('\\n');
+    return lines.join('\n');
   };
 
   const buildShareUrl = () => {
