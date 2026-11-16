@@ -22,7 +22,6 @@ import {
   formatMinutesToClock,
   formatMinutesToPersian,
 } from '../utils/analytics';
-import { generateExecutiveShareText } from '../utils/exporters';
 import { formatJalaliReadable, getTodayJalali, toPersianDigits } from '../utils/jalali';
 
 interface ShareAndPdfModalProps {
@@ -57,11 +56,23 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   const totalSessionMins = sessions.reduce((s, x) => s + x.durationMinutes, 0);
   const totalPersonMins = repStats.reduce((s, r) => s + r.totalMinutes, 0);
 
+  const buildSelectedShareText = () => {
+    const lines: string[] = [`گزارش جلسات کارگروه‌ها · ${toPersianDigits(today)}`];
+    if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
+    if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
+    if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
+    if (printParts.committees) lines.push('آمار کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
+    if (printParts.sessions) lines.push('فهرست جلسات:', ...sessions.map((session) => `${toPersianDigits(session.jalaliDate)} · ${COMMITTEE_MAP[session.committeeId]?.name ?? ''} · ${session.topic}`));
+    return lines.join('\\n');
+  };
+
   const buildShareUrl = () => {
+    const needsSessions = printParts.summary || printParts.committees || printParts.sessions;
+    const needsPeople = printParts.trustees || printParts.representatives;
     const encoded = encodeSharePayload({
-      trustees,
-      representatives,
-      sessions,
+      trustees: needsPeople ? trustees : [],
+      representatives: needsPeople ? representatives : [],
+      sessions: needsSessions ? sessions : [],
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
@@ -69,12 +80,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const handleCopyText = async () => {
-    const text = generateExecutiveShareText({
-      sessions,
-      repStats,
-      trusteeStats,
-      committeeStats,
-    });
+    const text = buildSelectedShareText();
     try {
       await navigator.clipboard.writeText(text);
       setCopiedType('text');
@@ -96,12 +102,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const handleNativeShare = async () => {
-    const text = generateExecutiveShareText({
-      sessions,
-      repStats,
-      trusteeStats,
-      committeeStats,
-    });
+    const text = buildSelectedShareText();
     if (navigator.share) {
       try {
         await navigator.share({
