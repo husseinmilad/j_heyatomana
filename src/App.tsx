@@ -30,6 +30,7 @@ import {
   Trustee,
 } from './types';
 import {
+  COMMITTEES,
   computeCommitteeStats,
   computeMonthlyTrend,
   computeRepresentativeStats,
@@ -141,7 +142,7 @@ export default function App() {
         db.representatives,
         db.trustees
       ),
-    [filteredSessions, db.representatives, db.trustees]
+    [filteredSessions, db.representatives, db.trustees, db.committees]
   );
 
   const trusteeStats = useMemo(
@@ -151,8 +152,8 @@ export default function App() {
   );
 
   const committeeStats = useMemo(
-    () => computeCommitteeStats(filteredSessions),
-    [filteredSessions]
+    () => computeCommitteeStats(filteredSessions, db.committees ?? COMMITTEES),
+    [filteredSessions, db.committees]
   );
 
   const monthlyTrend = useMemo(
@@ -615,7 +616,7 @@ export default function App() {
               onUpdateRepresentative={handleUpdateRepresentative}
               onDeleteRepresentative={handleDeleteRepresentative}
               isReadOnlyShared={isSharedMode}
-              onCommitteesChange={() => showToast('فهرست کارگروه‌ها ذخیره شد.')}
+              onCommitteesChange={() => { setDb((prev) => ({ ...prev, committees: [...COMMITTEES] })); showToast('فهرست کارگروه‌ها ذخیره شد.'); }}
             />
           )}
         </main>
