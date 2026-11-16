@@ -49,7 +49,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   onExportExcel,
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
-  const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, sessions: true });
+  const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, committees: true, sessions: true });
 
   if (!isOpen) return null;
 
@@ -143,7 +143,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
               نسخه رسمی قابل چاپ با فونت وزیر، اشتراک‌گذاری متنی یا لینک گزارش
             </p>
           </div>
-          <div className="no-print flex flex-wrap gap-3 px-6 py-3 border-b border-slate-200 text-xs text-slate-700"><span className="font-semibold">بخش‌های خروجی:</span><label><input type="checkbox" checked={printParts.summary} onChange={(e) => setPrintParts((p) => ({ ...p, summary: e.target.checked }))} /> خلاصه</label><label><input type="checkbox" checked={printParts.trustees} onChange={(e) => setPrintParts((p) => ({ ...p, trustees: e.target.checked }))} /> اعضای هیئت‌امنا</label><label><input type="checkbox" checked={printParts.representatives} onChange={(e) => setPrintParts((p) => ({ ...p, representatives: e.target.checked }))} /> نمایندگان</label><label><input type="checkbox" checked={printParts.sessions} onChange={(e) => setPrintParts((p) => ({ ...p, sessions: e.target.checked }))} /> فهرست جلسات</label></div>
+          <div className="no-print flex flex-wrap gap-3 px-6 py-3 border-b border-slate-200 text-xs text-slate-700"><span className="font-semibold">بخش‌های خروجی:</span><label><input type="checkbox" checked={printParts.summary} onChange={(e) => setPrintParts((p) => ({ ...p, summary: e.target.checked }))} /> خلاصه</label><label><input type="checkbox" checked={printParts.trustees} onChange={(e) => setPrintParts((p) => ({ ...p, trustees: e.target.checked }))} /> اعضای هیئت‌امنا</label><label><input type="checkbox" checked={printParts.representatives} onChange={(e) => setPrintParts((p) => ({ ...p, representatives: e.target.checked }))} /> نمایندگان</label><label><input type="checkbox" checked={printParts.committees} onChange={(e) => setPrintParts((p) => ({ ...p, committees: e.target.checked }))} /> کارگروه‌ها</label><label><input type="checkbox" checked={printParts.sessions} onChange={(e) => setPrintParts((p) => ({ ...p, sessions: e.target.checked }))} /> فهرست جلسات</label></div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -348,10 +348,18 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
             </table>
           </div>
 
+          <div className={printParts.committees ? "" : "hidden"}>
+            <h3 className="text-sm font-bold text-slate-900 mb-2">۳. آمار به تفکیک کارگروه‌ها</h3>
+            <table className="w-full text-right border-collapse border border-slate-200 text-xs">
+              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-2 px-3">کارگروه</th><th className="border border-slate-200 py-2 px-3">تعداد جلسات</th><th className="border border-slate-200 py-2 px-3">مجموع زمان جلسات</th><th className="border border-slate-200 py-2 px-3">نفر-ساعت حضور</th></tr></thead>
+              <tbody>{committeeStats.map((st) => <tr key={st.committee.id}><td className="border border-slate-200 py-2 px-3">{st.committee.name}</td><td className="border border-slate-200 py-2 px-3">{toPersianDigits(st.sessionCount)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalSessionMinutes)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalPersonMinutes)}</td></tr>)}</tbody>
+            </table>
+          </div>
+
           {/* Committee & Sessions Summary */}
           <div className={printParts.sessions ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
-              ۳. فهرست جلسات ({toPersianDigits(sessions.length)} جلسه)
+              ۴. فهرست جلسات ({toPersianDigits(sessions.length)} جلسه)
             </h3>
             <table className="w-full text-right border-collapse border border-slate-200 text-xs">
               <thead>
