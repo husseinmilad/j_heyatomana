@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - desktop/windows-json-storage
+      - feature/report-print-committee-management
   pull_request:
     branches:
       - main
