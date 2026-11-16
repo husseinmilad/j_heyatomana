@@ -36,6 +36,7 @@ import {
   computeTrusteeStats,
   decodeSharePayload,
   filterSessions,
+  parseAndValidateBackup,
 } from './utils/analytics';
 import { exportToExcel } from './utils/exporters';
 import { formatJalaliWithWeekday, getTodayJalali, toPersianDigits } from './utils/jalali';
@@ -59,18 +60,13 @@ function loadInitialState(): {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved) as Partial<AppDatabaseState>;
-        if (
-          parsed &&
-          Array.isArray(parsed.trustees) &&
-          Array.isArray(parsed.representatives) &&
-          Array.isArray(parsed.sessions)
-        ) {
+        const validated = parseAndValidateBackup(saved);
+        if (validated.ok) {
           return {
             db: {
-              trustees: parsed.trustees,
-              representatives: parsed.representatives,
-              sessions: parsed.sessions,
+              trustees: validated.data.trustees,
+              representatives: validated.data.representatives,
+              sessions: validated.data.sessions,
             },
             isSharedMode: false,
           };
@@ -286,9 +282,13 @@ export default function App() {
   };
 
   const handleExitSharedMode = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('share');
-    window.history.replaceState({}, '', url.toString());
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('share');
+      window.history.replaceState({}, '', url.toString());
+    } catch {
+      // Ignore history restriction in sandboxed or file origins
+    }
     const reloaded = loadInitialState();
     setDb(reloaded.db);
     setIsSharedMode(false);
@@ -363,7 +363,7 @@ export default function App() {
 
         <div className="p-4 border-t border-slate-200 space-y-2.5">
           <div className="text-xs text-slate-500 space-y-0.5 tabular-nums">
-            <p className="font-medium text-slate-700">ذخیره‌سازی لوکال و فایلی</p>
+            <p className="font-medium text-slate-700">آفلاین · ذخیره لوکال و فایلی</p>
             <p>
               {toPersianDigits(db.sessions.length)} جلسه ·{' '}
               {toPersianDigits(db.representatives.length)} نماینده
