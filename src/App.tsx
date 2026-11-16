@@ -192,7 +192,7 @@ export default function App() {
   const handleAddTrustee = (data: Omit<Trustee, 'id'>) => {
     const newTrustee: Trustee = { ...data, id: `tr-${Date.now()}` };
     setDb((prev) => ({ ...prev, trustees: [...prev.trustees, newTrustee] }));
-    showToast('عضو هیئت امنای جدید اضافه شد.');
+    showToast('عضو هیئت‌امنای جدید اضافه شد.');
   };
 
   const handleUpdateTrustee = (updated: Trustee) => {
@@ -200,7 +200,7 @@ export default function App() {
       ...prev,
       trustees: prev.trustees.map((t) => (t.id === updated.id ? updated : t)),
     }));
-    showToast('اطلاعات عضو هیئت امنا به‌روزرسانی شد.');
+    showToast('اطلاعات عضو هیئت‌امنا به‌روزرسانی شد.');
   };
 
   const handleDeleteTrustee = (id: string) => {
@@ -208,7 +208,7 @@ export default function App() {
       ...prev,
       trustees: prev.trustees.filter((t) => t.id !== id),
     }));
-    showToast('عضو هیئت امنا حذف شد.');
+    showToast('عضو هیئت‌امنا حذف شد.');
   };
 
   // Representative CRUD
