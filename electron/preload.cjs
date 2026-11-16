@@ -27,3 +27,5 @@ const desktopStorage = {
 };
 
 contextBridge.exposeInMainWorld('desktopStorage', desktopStorage);
+
+contextBridge.exposeInMainWorld('desktopPrint', () => ipcRenderer.send('desktop-print'));
