@@ -117,7 +117,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   داده‌های فعلی شامل {toPersianDigits(currentState.sessions.length)}{' '}
                   جلسه، {toPersianDigits(currentState.representatives.length)}{' '}
                   نماینده و {toPersianDigits(currentState.trustees.length)} عضو
-                  هیئت امنا در یک فایل JSON روی سیستم شما ذخیره می‌شود.
+                  هیئت‌امنا در یک فایل JSON روی سیستم شما ذخیره می‌شود.
                 </p>
               </div>
               <button
@@ -176,7 +176,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   <p>
                     • تعداد جلسات: {toPersianDigits(parsedBackup.sessions.length)}{' '}
                     · نمایندگان: {toPersianDigits(parsedBackup.representatives.length)}{' '}
-                    · اعضای هیئت امنا: {toPersianDigits(parsedBackup.trustees.length)}
+                    · اعضای هیئت‌امنا: {toPersianDigits(parsedBackup.trustees.length)}
                   </p>
                 </div>
 
