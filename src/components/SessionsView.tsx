@@ -149,6 +149,8 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                         <p className="font-semibold text-slate-900 leading-relaxed">
                           {session.topic}
                         </p>
+                        {session.letterNumber && <p className="mt-1 text-[11px] text-slate-500">شماره نامه: {session.letterNumber}</p>}
+                        {session.attachmentData && <a href={session.attachmentData} target="_blank" rel="noreferrer" download={session.attachmentName || 'meeting-minutes'} className="mt-1 inline-flex text-xs font-medium text-teal-700 hover:underline">مشاهده / دریافت پیوست صورتجلسه: {session.attachmentName}</a>}
                         {session.reportSummary && (
                           <div className="mt-1">
                             <p
