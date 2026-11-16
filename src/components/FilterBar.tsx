@@ -99,7 +99,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             htmlFor="filter-trustee"
             className="block text-xs font-medium text-slate-600 mb-1"
           >
-            عضو هیئت امنا
+            عضو هیئت‌امنا
           </label>
           <select
             id="filter-trustee"
@@ -109,7 +109,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             }
             className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-700"
           >
-            <option value="all">همه اعضای هیئت امنا</option>
+            <option value="all">همه اعضای هیئت‌امنا</option>
             {trustees.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.fullName}
