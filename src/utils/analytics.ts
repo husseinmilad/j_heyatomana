@@ -21,7 +21,7 @@ import {
   toPersianDigits,
 } from './jalali';
 
-export const COMMITTEES: Committee[] = [
+const DEFAULT_COMMITTEES: Committee[] = [
   {
     id: 'audit-budget',
     name: 'حسابرسی و بودجه',
@@ -54,6 +54,40 @@ export const COMMITTEES: Committee[] = [
   },
 ];
 
+export const COMMITTEES: Committee[] = [...DEFAULT_COMMITTEES];
+export const COMMITTEE_MAP: Record<string, Committee> = {};
+
+function rebuildCommitteeMap() {
+  Object.keys(COMMITTEE_MAP).forEach((key) => delete COMMITTEE_MAP[key]);
+  COMMITTEES.forEach((committee) => { COMMITTEE_MAP[committee.id] = committee; });
+}
+rebuildCommitteeMap();
+
+export function replaceCommittees(next: Committee[]) {
+  if (!Array.isArray(next) || next.length === 0) return;
+  COMMITTEES.splice(0, COMMITTEES.length, ...next);
+  rebuildCommitteeMap();
+}
+
+export function persistCommittees(next: Committee[]) {
+  replaceCommittees(next);
+  try {
+    const storage = typeof window !== 'undefined' ? (window.desktopStorage ?? window.localStorage) : null;
+    storage?.setItem('kargoroh_committees_v1', JSON.stringify(COMMITTEES));
+  } catch { /* keep current in-memory list */ }
+}
+
+export function loadSavedCommittees() {
+  try {
+    const storage = typeof window !== 'undefined' ? (window.desktopStorage ?? window.localStorage) : null;
+    const raw = storage?.getItem('kargoroh_committees_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw) as Committee[];
+      if (Array.isArray(parsed) && parsed.length) replaceCommittees(parsed);
+    }
+  } catch { /* use built-in committees */ }
+}
+
 export function getEffectiveTrusteeId(
   rep: Representative,
   committeeId?: CommitteeId
@@ -63,14 +97,6 @@ export function getEffectiveTrusteeId(
   }
   return rep.trusteeId;
 }
-
-export const COMMITTEE_MAP: Record<CommitteeId, Committee> = COMMITTEES.reduce(
-  (acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  },
-  {} as Record<CommitteeId, Committee>
-);
 
 export function parseTimeToMinutes(timeStr: string): number | null {
   const normalized = toEnglishDigits(timeStr.trim());
@@ -274,13 +300,7 @@ function createEmptyCommitteeBreakdown(): Record<
   CommitteeId,
   { sessions: number; minutes: number }
 > {
-  return {
-    'audit-budget': { sessions: 0, minutes: 0 },
-    'economy-investment': { sessions: 0, minutes: 0 },
-    'insurance-actuarial': { sessions: 0, minutes: 0 },
-    healthcare: { sessions: 0, minutes: 0 },
-    consolidation: { sessions: 0, minutes: 0 },
-  };
+  return Object.fromEntries(COMMITTEES.map((committee) => [committee.id, { sessions: 0, minutes: 0 }]));
 }
 
 export function computeRepresentativeStats(
