@@ -54,6 +54,7 @@ export interface FilterState {
 }
 
 export interface AppDatabaseState {
+  committees?: Committee[];
   trustees: Trustee[];
   representatives: Representative[];
   sessions: MeetingSession[];
