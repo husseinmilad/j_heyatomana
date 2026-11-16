@@ -103,7 +103,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                   <th className="py-3 px-4">کارگروه</th>
                   <th className="py-3 px-4">ساعت و مدت</th>
                   <th className="py-3 px-4">موضوع و گزارش جلسه</th>
-                  <th className="py-3 px-4">نمایندگان حاضر و عضو هیئت امنا</th>
+                  <th className="py-3 px-4">نمایندگان حاضر و عضو هیئت‌امنا</th>
                   {!isReadOnlyShared && (
                     <th className="py-3 px-4 text-left">عملیات</th>
                   )}
