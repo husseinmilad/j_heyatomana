@@ -509,6 +509,9 @@ export function parseAndValidateBackup(
     if (!parsed || typeof parsed !== 'object') {
       return { ok: false, error: 'ساختار فایل پشتیبان معتبر نیست.' };
     }
+    if (Array.isArray(parsed.committees) && parsed.committees.length && parsed.committees.every((c) => c && typeof c.id === 'string' && typeof c.name === 'string')) {
+      replaceCommittees(parsed.committees);
+    }
     if (
       !Array.isArray(parsed.trustees) ||
       !Array.isArray(parsed.representatives) ||
