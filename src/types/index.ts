@@ -41,6 +41,10 @@ export interface MeetingSession {
   durationMinutes: number;
   topic: string;
   reportSummary: string;
+  letterNumber?: string;
+  attachmentName?: string;
+  attachmentType?: string;
+  attachmentData?: string;
   attendees: SessionAttendance[];
   createdAt: string;
 }
