@@ -616,6 +616,7 @@ export default function App() {
               onUpdateRepresentative={handleUpdateRepresentative}
               onDeleteRepresentative={handleDeleteRepresentative}
               isReadOnlyShared={isSharedMode}
+              usedCommitteeIds={[...new Set(db.sessions.map((session) => session.committeeId))]}
               onCommitteesChange={() => { setDb((prev) => ({ ...prev, committees: [...COMMITTEES] })); showToast('فهرست کارگروه‌ها ذخیره شد.'); }}
             />
           )}
