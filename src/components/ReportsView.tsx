@@ -84,7 +84,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              به تفکیک عضو هیئت امنا ({toPersianDigits(trusteeStats.length)})
+              به تفکیک عضو هیئت‌امنا ({toPersianDigits(trusteeStats.length)})
             </button>
             <button
               type="button"
@@ -129,7 +129,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
                   <th className="py-3 px-4">نام نماینده</th>
-                  <th className="py-3 px-4">نماینده عضو هیئت امنا</th>
+                  <th className="py-3 px-4">نماینده عضو هیئت‌امنا</th>
                   <th className="py-3 px-4">کارگروه‌های عضویت</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">میزان ساعت حضور</th>
@@ -210,7 +210,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
-                  <th className="py-3 px-4">عضو هیئت امنا</th>
+                  <th className="py-3 px-4">عضو هیئت‌امنا</th>
                   <th className="py-3 px-4">نمایندگان منصوب</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">دفعات حضور نمایندگان</th>
