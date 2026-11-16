@@ -43,6 +43,10 @@ import { formatJalaliWithWeekday, getTodayJalali, toPersianDigits } from './util
 
 const STORAGE_KEY = 'kargoroh_dashboard_db_v2';
 
+function getAppStorage(): Pick<Storage, 'getItem' | 'setItem'> {
+  return window.desktopStorage ?? window.localStorage;
+}
+
 function loadInitialState(): {
   db: AppDatabaseState;
   isSharedMode: boolean;
@@ -58,7 +62,7 @@ function loadInitialState(): {
     }
 
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = getAppStorage().getItem(STORAGE_KEY);
       if (saved) {
         const validated = parseAndValidateBackup(saved);
         if (validated.ok) {
@@ -112,7 +116,7 @@ export default function App() {
   useEffect(() => {
     if (isSharedMode) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+      getAppStorage().setItem(STORAGE_KEY, JSON.stringify(db));
     } catch {
       // Ignore storage quota errors
     }
