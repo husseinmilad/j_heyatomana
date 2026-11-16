@@ -215,7 +215,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b-2 border-slate-900">
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">
-                گزارش مدیریتی جلسات کارگروه‌های تخصصی و حضور نمایندگان هیئت امنا
+                گزارش مدیریتی جلسات کارگروه‌های تخصصی و حضور نمایندگان هیئت‌امنا
               </h1>
               <p className="text-xs text-slate-600 mt-1">
                 حسابرسی و بودجه · اقتصاد و سرمایه‌گذاری · بیمه و محاسبات اکچوئری · بهداشت و درمان
@@ -268,12 +268,12 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           {/* Trustee Breakdown Table */}
           <div className={printParts.trustees ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
-              ۱. آمار جلسات و ساعات حضور به تفکیک اعضای هیئت امنا
+              ۱. آمار جلسات و ساعات حضور به تفکیک اعضای هیئت‌امنا
             </h3>
             <table className="w-full text-right border-collapse border border-slate-200 text-xs">
               <thead>
                 <tr className="bg-slate-100 text-slate-700">
-                  <th className="border border-slate-200 py-2 px-3">عضو هیئت امنا</th>
+                  <th className="border border-slate-200 py-2 px-3">عضو هیئت‌امنا</th>
                   <th className="border border-slate-200 py-2 px-3">نمایندگان</th>
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
@@ -315,7 +315,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                 <tr className="bg-slate-100 text-slate-700">
                   <th className="border border-slate-200 py-2 px-3">نام نماینده</th>
                   <th className="border border-slate-200 py-2 px-3">
-                    نماینده عضو هیئت امنا
+                    نماینده عضو هیئت‌امنا
                   </th>
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
