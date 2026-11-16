@@ -18,6 +18,7 @@ interface DirectoryViewProps {
   onUpdateRepresentative: (rep: Representative) => void;
   onDeleteRepresentative: (id: string) => void;
   isReadOnlyShared?: boolean;
+  usedCommitteeIds?: string[];
   onCommitteesChange?: () => void;
 }
 
@@ -31,6 +32,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   onUpdateRepresentative,
   onDeleteRepresentative,
   isReadOnlyShared = false,
+  usedCommitteeIds = [],
   onCommitteesChange,
 }) => {
   // Trustee form state
@@ -77,8 +79,8 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   };
 
   const deleteCommittee = (id: string) => {
-    const used = representatives.some((r) => r.committeeIds.includes(id));
-    if (used) { setCommitteeError('ابتدا عضویت نمایندگان را از این کارگروه بردارید.'); return; }
+    const usedByRepresentative = representatives.some((r) => r.committeeIds.includes(id));
+    if (usedByRepresentative || usedCommitteeIds.includes(id)) { setCommitteeError('این کارگروه در سوابق نمایندگان یا جلسات استفاده شده است؛ ابتدا سوابق وابسته را اصلاح کنید.'); return; }
     if (!window.confirm('این کارگروه حذف شود؟')) return;
     persistCommittees(COMMITTEES.filter((c) => c.id !== id));
     onCommitteesChange?.();
