@@ -49,6 +49,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   onExportExcel,
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
+  const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, sessions: true });
 
   if (!isOpen) return null;
 
@@ -117,7 +118,8 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const handlePrintPdf = () => {
-    window.print();
+    if (window.desktopPrint) window.desktopPrint();
+    else window.print();
   };
 
   return (
@@ -141,6 +143,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
               نسخه رسمی قابل چاپ با فونت وزیر، اشتراک‌گذاری متنی یا لینک گزارش
             </p>
           </div>
+          <div className="no-print flex flex-wrap gap-3 px-6 py-3 border-b border-slate-200 text-xs text-slate-700"><span className="font-semibold">بخش‌های خروجی:</span><label><input type="checkbox" checked={printParts.summary} onChange={(e) => setPrintParts((p) => ({ ...p, summary: e.target.checked }))} /> خلاصه</label><label><input type="checkbox" checked={printParts.trustees} onChange={(e) => setPrintParts((p) => ({ ...p, trustees: e.target.checked }))} /> اعضای هیئت‌امنا</label><label><input type="checkbox" checked={printParts.representatives} onChange={(e) => setPrintParts((p) => ({ ...p, representatives: e.target.checked }))} /> نمایندگان</label><label><input type="checkbox" checked={printParts.sessions} onChange={(e) => setPrintParts((p) => ({ ...p, sessions: e.target.checked }))} /> فهرست جلسات</label></div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -235,7 +238,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Summary Totals */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className={printParts.summary ? "grid grid-cols-3 gap-4" : "hidden"}>
             <div className="rounded-lg border border-slate-200 p-3.5">
               <span className="text-[11px] text-slate-500 block">
                 تعداد جلسات گزارش
@@ -263,7 +266,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Trustee Breakdown Table */}
-          <div>
+          <div className={printParts.trustees ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
               ۱. آمار جلسات و ساعات حضور به تفکیک اعضای هیئت امنا
             </h3>
@@ -303,7 +306,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Representative Breakdown Table */}
-          <div>
+          <div className={printParts.representatives ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
               ۲. آمار جلسات و ساعات حضور به تفکیک هر نماینده
             </h3>
@@ -346,7 +349,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Committee & Sessions Summary */}
-          <div>
+          <div className={printParts.sessions ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">
               ۳. فهرست جلسات ({toPersianDigits(sessions.length)} جلسه)
             </h3>
