@@ -91,7 +91,7 @@ export function exportToExcel(params: {
       'تعداد حاضران': s.attendees.length,
       'موضوع جلسه': s.topic,
       'شرح گزارش': s.reportSummary || '—',
-      'نمایندگان حاضر و عضو هیئت امنا': attendeesText,
+      'نمایندگان حاضر و عضو هیئت‌امنا': attendeesText,
     };
   });
   const wsSessions = XLSX.utils.json_to_sheet(sessionRows);
@@ -115,7 +115,7 @@ export function exportToExcel(params: {
     ردیف: toPersianDigits(idx + 1),
     'نام نماینده': st.representative.fullName,
     'سمت سازمانی': st.representative.roleTitle || '—',
-    'نماینده عضو هیئت امنا': st.trustee?.fullName ?? 'بدون انتساب / مستقل',
+    'نماینده عضو هیئت‌امنا': st.trustee?.fullName ?? 'بدون انتساب / مستقل',
     'کارگروه‌های عضویت': st.committeeNames.join('، ') || '—',
     'تعداد جلسات حضور': st.sessionCount,
     'مجموع ساعت حضور': formatMinutesToPersian(st.totalMinutes),
@@ -157,7 +157,7 @@ export function exportToExcel(params: {
   // Sheet 3: Trustee Stats
   const trusteeRows = trusteeStats.map((st, idx) => ({
     ردیف: toPersianDigits(idx + 1),
-    'نام عضو هیئت امنا': st.trustee.fullName,
+    'نام عضو هیئت‌امنا': st.trustee.fullName,
     'عنوان و جایگاه': st.trustee.position || '—',
     'اسامی نمایندگان': st.representatives.map((r) => r.fullName).join('، ') || '—',
     'تعداد جلسات با حضور نماینده': st.sessionCount,
@@ -176,7 +176,7 @@ export function exportToExcel(params: {
     { wch: 22 },
     { wch: 16 },
   ];
-  XLSX.utils.book_append_sheet(wb, wsTrustees, 'حضور اعضای هیئت امنا');
+  XLSX.utils.book_append_sheet(wb, wsTrustees, 'حضور اعضای هیئت‌امنا');
 
   // Sheet 4: Committee Stats
   const committeeRows = committeeStats.map((st, idx) => ({
@@ -232,7 +232,7 @@ export function generateExecutiveShareText(params: {
         `- ${c.committee.name}: ${toPersianDigits(c.sessionCount)} جلسه (${formatMinutesToPersian(c.totalSessionMinutes)})`
     ),
     ``,
-    `👤 حضور به تفکیک اعضای هیئت امنا:`,
+    `👤 حضور به تفکیک اعضای هیئت‌امنا:`,
     ...trusteeStats
       .filter((t) => t.totalMinutes > 0 || t.representatives.length > 0)
       .map(
