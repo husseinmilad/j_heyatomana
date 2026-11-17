@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Check, Pencil, Plus, Share2, Trash2, UserPlus } from 'lucide-react';
 import {
   CommitteeId,
   Representative,
@@ -20,6 +20,7 @@ interface DirectoryViewProps {
   isReadOnlyShared?: boolean;
   usedCommitteeIds?: string[];
   onCommitteesChange?: () => void;
+  onOpenShare?: () => void;
 }
 
 export const DirectoryView: React.FC<DirectoryViewProps> = ({
@@ -34,6 +35,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   isReadOnlyShared = false,
   usedCommitteeIds = [],
   onCommitteesChange,
+  onOpenShare,
 }) => {
   // Trustee form state
   const [editingTrusteeId, setEditingTrusteeId] = useState<string | null>(null);
@@ -167,7 +169,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
     <div className="space-y-6">
       {/* 4 Committees Overview */}
       <section>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><h2 className="text-base font-semibold text-slate-900">کارگروه‌ها، کمیته‌ها و نشست‌ها</h2>{!isReadOnlyShared && <form onSubmit={saveCommittee} className="flex flex-wrap gap-2"><select value={committeeCategory} onChange={(e) => setCommitteeCategory(e.target.value as 'کارگروه' | 'کمیته' | 'نشست')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs"><option>کارگروه</option><option>کمیته</option><option>نشست</option></select><input value={committeeName} onChange={(e) => setCommitteeName(e.target.value)} placeholder="نام کارگروه / کمیته / نشست" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><input value={committeeDescription} onChange={(e) => setCommitteeDescription(e.target.value)} placeholder="شرح حوزه فعالیت" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><button className="rounded-lg bg-teal-700 px-3 py-2 text-xs text-white">{editingCommitteeId ? 'ذخیره ویرایش' : 'افزودن مورد'}</button>{editingCommitteeId && <button type="button" onClick={() => {setEditingCommitteeId(null);setCommitteeName('');setCommitteeDescription('');setCommitteeCategory('کارگروه');}} className="rounded-lg border px-3 py-2 text-xs">انصراف</button>}</form>}</div>{committeeError && <p className="mb-2 text-xs text-red-600">{committeeError}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><div className="flex items-center gap-2"><h2 className="text-base font-semibold text-slate-900">کارگروه‌ها، کمیته‌ها و نشست‌ها</h2>{onOpenShare && <button type="button" onClick={onOpenShare} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"><Share2 className="w-3.5 h-3.5" /> گزارش و اشتراک‌گذاری این بخش</button>}</div>{!isReadOnlyShared && <form onSubmit={saveCommittee} className="flex flex-wrap gap-2"><select value={committeeCategory} onChange={(e) => setCommitteeCategory(e.target.value as 'کارگروه' | 'کمیته' | 'نشست')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs"><option>کارگروه</option><option>کمیته</option><option>نشست</option></select><input value={committeeName} onChange={(e) => setCommitteeName(e.target.value)} placeholder="نام کارگروه / کمیته / نشست" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><input value={committeeDescription} onChange={(e) => setCommitteeDescription(e.target.value)} placeholder="شرح حوزه فعالیت" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><button className="rounded-lg bg-teal-700 px-3 py-2 text-xs text-white">{editingCommitteeId ? 'ذخیره ویرایش' : 'افزودن مورد'}</button>{editingCommitteeId && <button type="button" onClick={() => {setEditingCommitteeId(null);setCommitteeName('');setCommitteeDescription('');setCommitteeCategory('کارگروه');}} className="rounded-lg border px-3 py-2 text-xs">انصراف</button>}</form>}</div>{committeeError && <p className="mb-2 text-xs text-red-600">{committeeError}</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {COMMITTEES.map((committee) => {
             const members = representatives.filter((r) =>
