@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -26,6 +26,8 @@ function writeStore(value) {
 }
 
 let store = {};
+
+ipcMain.on('desktop-share', (_event, text) => { clipboard.writeText(String(text ?? '')); });
 
 ipcMain.on('desktop-print', (event) => {
   const target = BrowserWindow.fromWebContents(event.sender);
@@ -64,6 +66,20 @@ ipcMain.on('desktop-store:clear', (event) => {
 
 ipcMain.on('desktop-store:keys', (event) => {
   event.returnValue = Object.keys(store);
+});
+
+ipcMain.handle('desktop-print-preview', async (event, html) => {
+  const preview = new BrowserWindow({ width: 1100, height: 850, show: true, autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false } });
+  const safeHtml = String(html ?? '');
+  await preview.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(safeHtml));
+  preview.webContents.on('did-finish-load', async () => {
+    try {
+      const pdf = await preview.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0.35, bottom: 0.35, left: 0.35, right: 0.35 } });
+      const pdfPath = path.join(app.getPath('temp'), `heyatomana-report-${Date.now()}.pdf`);
+      fs.writeFileSync(pdfPath, pdf);
+      await shell.openPath(pdfPath);
+    } catch (error) { console.error('PDF preview failed:', error); }
+  });
 });
 
 function createWindow() {
