@@ -170,7 +170,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                       {toPersianDigits(st.sessionCount)}
                     </td>
                     <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
-                    <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="py-3.5 px-4 text-left tabular-nums">
                       <span className="font-bold text-teal-800 block">
                         {formatMinutesToClock(st.totalMinutes)} ساعت
@@ -179,7 +178,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         {formatMinutesToPersian(st.totalMinutes)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                     <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                     {COMMITTEES.map((c) => {
                       const b = st.committeeBreakdown[c.id];
@@ -221,7 +219,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">دفعات حضور نمایندگان</th>
                   <th className="py-3 px-4 text-left">روزهای حضور</th>
+                  <th className="py-3 px-4 text-left">روزهای حضور</th>
                   <th className="py-3 px-4 text-left">مجموع ساعت حضور</th>
+                  <th className="py-3 px-4">عناوین جلسات</th>
                   <th className="py-3 px-4">عناوین جلسات</th>
                   {COMMITTEES.map((c) => (
                     <th key={c.id} className="py-3 px-3 text-left whitespace-nowrap">
@@ -257,6 +257,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <td className="py-3.5 px-4 text-left tabular-nums text-slate-700">
                       {toPersianDigits(st.totalAttendances)}
                     </td>
+                    <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="py-3.5 px-4 text-left tabular-nums">
                       <span className="font-bold text-teal-800 block">
                         {formatMinutesToClock(st.totalMinutes)} ساعت
@@ -265,6 +266,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         {formatMinutesToPersian(st.totalMinutes)}
                       </span>
                     </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                     {COMMITTEES.map((c) => {
                       const b = st.committeeBreakdown[c.id];
                       return (
