@@ -219,9 +219,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">دفعات حضور نمایندگان</th>
                   <th className="py-3 px-4 text-left">روزهای حضور</th>
-                  <th className="py-3 px-4 text-left">روزهای حضور</th>
                   <th className="py-3 px-4 text-left">مجموع ساعت حضور</th>
-                  <th className="py-3 px-4">عناوین جلسات</th>
                   <th className="py-3 px-4">عناوین جلسات</th>
                   {COMMITTEES.map((c) => (
                     <th key={c.id} className="py-3 px-3 text-left whitespace-nowrap">
