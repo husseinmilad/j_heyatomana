@@ -5,6 +5,7 @@ export interface Committee {
   name: string;
   description: string;
   accentColor: string;
+  category?: 'کارگروه' | 'کمیته' | 'نشست';
 }
 
 export interface Trustee {
@@ -72,6 +73,8 @@ export interface RepresentativeStat {
   committeeNames: string[];
   sessionCount: number;
   totalMinutes: number;
+  attendanceDays: number;
+  attendedSessionTitles: string[];
   committeeBreakdown: Record<CommitteeId, { sessions: number; minutes: number }>;
 }
 
@@ -81,6 +84,8 @@ export interface TrusteeStat {
   sessionCount: number; // Unique sessions where at least one of this trustee's reps attended
   totalAttendances: number; // Sum of rep attendances
   totalMinutes: number; // Sum of attendance minutes across all reps of this trustee
+  attendanceDays: number;
+  attendedSessionTitles: string[];
   committeeBreakdown: Record<CommitteeId, { sessions: number; minutes: number }>;
 }
 
