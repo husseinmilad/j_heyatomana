@@ -29,5 +29,5 @@ const desktopStorage = {
 contextBridge.exposeInMainWorld('desktopStorage', desktopStorage);
 
 contextBridge.exposeInMainWorld('desktopPrint', () => ipcRenderer.send('desktop-print'));
-contextBridge.exposeInMainWorld('desktopShare', (text) => ipcRenderer.send('desktop-share', String(text ?? ''));
+contextBridge.exposeInMainWorld('desktopShare', (text) => ipcRenderer.send('desktop-share', String(text ?? '')));
 contextBridge.exposeInMainWorld('desktopPrintPreview', (html) => ipcRenderer.invoke('desktop-print-preview', String(html ?? '')));
