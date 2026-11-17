@@ -25,7 +25,7 @@ interface ReportsViewProps {
   filters: FilterState;
   onFiltersChange: (next: FilterState) => void;
   onExportExcel: () => void;
-  onOpenSharePdf: () => void;
+  onOpenSharePdf: (parts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>) => void;
 }
 
 type ReportSubTab = 'by-representative' | 'by-trustee' | 'by-committee';
@@ -112,7 +112,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </button>
             <button
               type="button"
-              onClick={onOpenSharePdf}
+              onClick={() => onOpenSharePdf(subTab === 'by-representative' ? { representatives: true } : subTab === 'by-trustee' ? { trustees: true } : { committees: true })}
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 transition-colors whitespace-nowrap"
             >
               <Printer className="w-4 h-4" />
@@ -132,7 +132,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <th className="py-3 px-4">نماینده عضو هیئت‌امنا</th>
                   <th className="py-3 px-4">کارگروه‌های عضویت</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
+                  <th className="py-3 px-4 text-left">روزهای حضور</th>
                   <th className="py-3 px-4 text-left">میزان ساعت حضور</th>
+                  <th className="py-3 px-4">عناوین جلسات</th>
                   {COMMITTEES.map((c) => (
                     <th key={c.id} className="py-3 px-3 text-left whitespace-nowrap">
                       {c.name}
@@ -167,6 +169,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <td className="py-3.5 px-4 text-left tabular-nums font-medium text-slate-900">
                       {toPersianDigits(st.sessionCount)}
                     </td>
+                    <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
+                    <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="py-3.5 px-4 text-left tabular-nums">
                       <span className="font-bold text-teal-800 block">
                         {formatMinutesToClock(st.totalMinutes)} ساعت
@@ -175,6 +179,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         {formatMinutesToPersian(st.totalMinutes)}
                       </span>
                     </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
+                    <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                     {COMMITTEES.map((c) => {
                       const b = st.committeeBreakdown[c.id];
                       return (
@@ -214,7 +220,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <th className="py-3 px-4">نمایندگان منصوب</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">دفعات حضور نمایندگان</th>
+                  <th className="py-3 px-4 text-left">روزهای حضور</th>
                   <th className="py-3 px-4 text-left">مجموع ساعت حضور</th>
+                  <th className="py-3 px-4">عناوین جلسات</th>
                   {COMMITTEES.map((c) => (
                     <th key={c.id} className="py-3 px-3 text-left whitespace-nowrap">
                       {c.name}
