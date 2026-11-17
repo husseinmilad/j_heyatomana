@@ -69,7 +69,7 @@ ipcMain.on('desktop-store:keys', (event) => {
 });
 
 ipcMain.handle('desktop-print-preview', async (event, html) => {
-  const preview = new BrowserWindow({ width: 1100, height: 850, show: true, autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false } });
+  const preview = new BrowserWindow({ width: 1100, height: 850, show: false, autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false } });
   const safeHtml = String(html ?? '');
   await preview.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(safeHtml));
   try {
@@ -78,6 +78,7 @@ ipcMain.handle('desktop-print-preview', async (event, html) => {
     fs.writeFileSync(pdfPath, pdf);
     const openError = await shell.openPath(pdfPath);
     if (openError) console.error('Could not open PDF preview:', openError);
+    preview.close();
   } catch (error) { console.error('PDF preview failed:', error); preview.close(); }
 });
 
