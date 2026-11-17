@@ -300,7 +300,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
-                  <th className="py-3 px-4">نام کارگروه</th>
+                  <th className="py-3 px-4">نوع جلسه / کارگروه</th>
                   <th className="py-3 px-4">حوزه ماموریت</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">مجموع ساعات جلسات</th>
