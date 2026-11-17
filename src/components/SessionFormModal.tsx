@@ -49,6 +49,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
   const [attachmentData, setAttachmentData] = useState<string>('');
   const [attendees, setAttendees] = useState<SessionAttendance[]>([]);
   const [showAllReps, setShowAllReps] = useState<boolean>(false);
+  const [representativeSearch, setRepresentativeSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const trusteeMap = new Map(trustees.map((t) => [t.id, t]));
@@ -87,6 +88,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
       setAttendees([]);
       setShowAllReps(false);
     }
+    setRepresentativeSearch('');
     setErrors({});
   }, [isOpen, editingSession, todayStr, representatives]);
 
@@ -94,13 +96,13 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
 
   const computedDuration = calculateSessionDuration(startTime, endTime);
 
-  const primaryReps = representatives.filter((r) =>
-    r.committeeIds.includes(committeeId)
-  );
-  const otherReps = representatives.filter(
-    (r) => !r.committeeIds.includes(committeeId)
-  );
-  const visibleReps = showAllReps ? [...primaryReps, ...otherReps] : primaryReps;
+  const selectedSessionGroup = COMMITTEES.find((c) => c.id === committeeId);
+  const isAdHocGroup = selectedSessionGroup?.category === 'کمیته' || selectedSessionGroup?.category === 'نشست';
+  const primaryReps = isAdHocGroup ? representatives : representatives.filter((r) => r.committeeIds.includes(committeeId));
+  const otherReps = isAdHocGroup ? [] : representatives.filter((r) => !r.committeeIds.includes(committeeId));
+  const visiblePool = showAllReps || isAdHocGroup ? [...primaryReps, ...otherReps] : primaryReps;
+  const normalizedRepSearch = toEnglishDigits(representativeSearch.trim()).toLowerCase();
+  const visibleReps = visiblePool.filter((r) => toEnglishDigits(`${r.fullName} ${r.roleTitle}`).toLowerCase().includes(normalizedRepSearch));
 
   const isRepSelected = (repId: string) =>
     attendees.some((a) => a.representativeId === repId);
@@ -207,7 +209,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
               id="session-modal-title"
               className="text-base font-bold text-slate-900"
             >
-              {editingSession ? 'ویرایش اطلاعات جلسه' : 'ثبت جلسه جدید کارگروه'}
+              {editingSession ? 'ویرایش اطلاعات جلسه' : 'ثبت جلسه جدید'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               اطلاعات زمان، تاریخ شمسی، موضوع گزارش و نمایندگان حاضر را وارد کنید
@@ -231,7 +233,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
                 htmlFor="session-committee"
                 className="block text-xs font-medium text-slate-700 mb-1.5"
               >
-                نام کارگروه <span className="text-red-600">*</span>
+                نوع جلسه / کارگروه <span className="text-red-600">*</span>
               </label>
               <select
                 id="session-committee"
@@ -241,7 +243,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
               >
                 {COMMITTEES.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {c.category && c.category !== 'کارگروه' ? `${c.category} · ${c.name}` : c.name}
                   </option>
                 ))}
               </select>
@@ -383,7 +385,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <span className="text-xs font-medium text-slate-700">
-                نمایندگان حاضر در جلسه ({toPersianDigits(attendees.length)} نفر انتخاب‌شده){' '}
+                مدعوین و نمایندگان حاضر در جلسه ({toPersianDigits(attendees.length)} نفر انتخاب‌شده){' '}
                 <span className="text-red-600">*</span>
               </span>
               <div className="flex items-center gap-3">
@@ -410,6 +412,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
               </div>
             </div>
 
+            <div className="mb-2">
+              <input type="search" value={representativeSearch} onChange={(e) => setRepresentativeSearch(e.target.value)} placeholder="جستجوی نام یا سمت نماینده..." aria-label="جستجوی نماینده" className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-600/20" />
+              {isAdHocGroup && <p className="mt-1 text-[11px] text-slate-500">برای این نوع جلسه، نمایندگان بدون وابستگی ثابت به‌صورت موردی انتخاب می‌شوند.</p>}
+            </div>
             <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-60 overflow-y-auto">
               {visibleReps.length === 0 ? (
                 <p className="p-4 text-xs text-slate-500 text-center">
