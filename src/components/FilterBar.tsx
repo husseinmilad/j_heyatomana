@@ -71,7 +71,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             htmlFor="filter-committee"
             className="block text-xs font-medium text-slate-600 mb-1"
           >
-            کارگروه
+            نوع جلسه / کارگروه
           </label>
           <select
             id="filter-committee"
@@ -84,7 +84,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             }
             className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-700"
           >
-            <option value="all">همه کارگروه‌ها</option>
+            <option value="all">همه انواع</option>
             {COMMITTEES.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
