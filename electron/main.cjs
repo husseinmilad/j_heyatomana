@@ -7,7 +7,21 @@ const STORAGE_FILE = () => path.join(app.getPath('userData'), 'database.json');
 function readStore() {
   try {
     const file = STORAGE_FILE();
-    if (!fs.existsSync(file)) return {};
+    if (!fs.existsSync(file)) {
+      // Preserve the database created by the previous installer name.
+      const legacyFiles = [
+        path.join(app.getPath('appData'), 'سامانه مدیریت جلسات کارگروه‌ها', 'database.json'),
+        path.join(app.getPath('appData'), 'مدیریت کارگروه‌ها', 'database.json'),
+        path.join(app.getPath('appData'), 'j-heyatomana', 'database.json')
+      ];
+      const legacyFile = legacyFiles.find((candidate) => fs.existsSync(candidate));
+      if (legacyFile) {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.copyFileSync(legacyFile, file);
+      } else {
+        return {};
+      }
+    }
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch (error) {
