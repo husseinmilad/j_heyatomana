@@ -64,7 +64,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
     if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
     if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
-    if (printParts.committees) lines.push('آمار کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
+    if (printParts.committees) lines.push('آمار انواع جلسات و کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
     if (printParts.sessions) lines.push('فهرست جلسات:', ...sessions.map((session) => `${toPersianDigits(session.jalaliDate)} · ${COMMITTEE_MAP[session.committeeId]?.name ?? ''} · ${session.topic}`));
     return lines.join('\n');
   };
@@ -358,7 +358,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className={printParts.committees ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">۳. آمار به تفکیک کارگروه‌ها</h3>
             <table className="w-full text-right border-collapse border border-slate-200 text-xs">
-              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-2 px-3">کارگروه</th><th className="border border-slate-200 py-2 px-3">تعداد جلسات</th><th className="border border-slate-200 py-2 px-3">مجموع زمان جلسات</th><th className="border border-slate-200 py-2 px-3">نفر-ساعت حضور</th></tr></thead>
+              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-2 px-3">نوع جلسه / کارگروه</th><th className="border border-slate-200 py-2 px-3">تعداد جلسات</th><th className="border border-slate-200 py-2 px-3">مجموع زمان جلسات</th><th className="border border-slate-200 py-2 px-3">نفر-ساعت حضور</th></tr></thead>
               <tbody>{committeeStats.map((st) => <tr key={st.committee.id}><td className="border border-slate-200 py-2 px-3">{st.committee.name}</td><td className="border border-slate-200 py-2 px-3">{toPersianDigits(st.sessionCount)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalSessionMinutes)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalPersonMinutes)}</td></tr>)}</tbody>
             </table>
           </div>
