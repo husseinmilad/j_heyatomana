@@ -43,7 +43,7 @@
   "main": "electron/main.cjs",
   "build": {
     "appId": "ir.heyatomana.meetings",
-    "productName": "سامانه مدیریت جلسات کارگروه‌ها",
+    "productName": "مدیریت جلسات هیئت امنای سازمان تامین اجتماعی و صندوق های تابعه",
     "directories": {
       "output": "release"
     },
@@ -68,7 +68,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "مدیریت جلسات کارگروه‌ها"
+      "shortcutName": "مدیریت جلسات هیئت امنا"
     }
   }
 }
