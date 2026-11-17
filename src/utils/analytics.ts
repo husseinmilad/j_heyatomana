@@ -350,14 +350,6 @@ export function computeRepresentativeStats(
     stat.attendanceDays = dates.size;
   }
 
-  for (const stat of statsMap.values()) {
-    const dates = new Set<string>();
-    for (const session of sessions) {
-      if (session.attendees.some((att) => { const rep = repMap.get(att.representativeId); return !!rep && getEffectiveTrusteeId(rep, session.committeeId) === stat.trustee.id; })) dates.add(session.jalaliDate);
-    }
-    stat.attendanceDays = dates.size;
-  }
-
   return Array.from(statsMap.values()).sort((a, b) => {
     if (b.totalMinutes !== a.totalMinutes) return b.totalMinutes - a.totalMinutes;
     return b.sessionCount - a.sessionCount;
@@ -424,6 +416,17 @@ export function computeTrusteeStats(
       const tStat = statsMap.get(tid);
       if (tStat) tStat.sessionCount += 1;
     }
+  }
+
+  for (const stat of statsMap.values()) {
+    const dates = new Set<string>();
+    for (const session of sessions) {
+      if (session.attendees.some((att) => {
+        const rep = repMap.get(att.representativeId);
+        return !!rep && getEffectiveTrusteeId(rep, session.committeeId) === stat.trustee.id;
+      })) dates.add(session.jalaliDate);
+    }
+    stat.attendanceDays = dates.size;
   }
 
   return Array.from(statsMap.values()).sort((a, b) => {
