@@ -410,7 +410,7 @@ export default function App() {
           <aside className="relative z-10 w-64 max-w-[82vw] bg-white h-full flex flex-col border-l border-slate-200 shadow-xl">
             <div className="h-16 px-4 flex items-center justify-between border-b border-slate-200">
               <span className="text-base font-extrabold text-slate-900">
-                مدیریت کارگروه‌ها
+                مدیریت جلسات هیئت‌امنا
               </span>
               <button
                 type="button"
