@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Check,
   Copy,
@@ -34,6 +34,7 @@ interface ShareAndPdfModalProps {
   trusteeStats: TrusteeStat[];
   committeeStats: CommitteeStat[];
   onExportExcel: () => void;
+  initialParts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>;
 }
 
 export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
@@ -46,9 +47,11 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   trusteeStats,
   committeeStats,
   onExportExcel,
+  initialParts,
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
   const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, committees: true, sessions: true });
+  useEffect(() => { if (isOpen && initialParts) setPrintParts({ summary: false, trustees: false, representatives: false, committees: false, sessions: false, ...initialParts }); }, [isOpen, initialParts]);
 
   if (!isOpen) return null;
 
@@ -57,10 +60,10 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   const totalPersonMins = repStats.reduce((s, r) => s + r.totalMinutes, 0);
 
   const buildSelectedShareText = () => {
-    const lines: string[] = [`گزارش جلسات کارگروه‌ها · ${toPersianDigits(today)}`];
+    const lines: string[] = [`گزارش جلسات هیئت‌امنای سازمان تأمین اجتماعی و صندوق‌های تابعه · ${toPersianDigits(today)}`];
     if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
-    if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
-    if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
+    if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
+    if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
     if (printParts.committees) lines.push('آمار کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
     if (printParts.sessions) lines.push('فهرست جلسات:', ...sessions.map((session) => `${toPersianDigits(session.jalaliDate)} · ${COMMITTEE_MAP[session.committeeId]?.name ?? ''} · ${session.topic}`));
     return lines.join('\n');
@@ -79,26 +82,23 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     return url.toString();
   };
 
+  const copyText = async (value: string) => {
+    try { if (window.desktopShare) { window.desktopShare(value); return true; } } catch { /* fallback */ }
+    try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(value); return true; } } catch { /* fallback */ }
+    try { const area = document.createElement('textarea'); area.value = value; area.setAttribute('readonly', ''); area.style.position = 'fixed'; area.style.opacity = '0'; document.body.appendChild(area); area.select(); const ok = document.execCommand('copy'); area.remove(); return ok; } catch { return false; }
+  };
+
   const handleCopyText = async () => {
-    const text = buildSelectedShareText();
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedType('text');
-      setTimeout(() => setCopiedType(null), 2500);
-    } catch {
-      // Fallback ignored in restricted frames
-    }
+    const ok = await copyText(buildSelectedShareText());
+    setCopiedType(ok ? 'text' : null);
+    if (ok) setTimeout(() => setCopiedType(null), 2500);
   };
 
   const handleCopyLink = async () => {
     const shareUrl = buildShareUrl();
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopiedType('link');
-      setTimeout(() => setCopiedType(null), 2500);
-    } catch {
-      // Fallback ignored
-    }
+    const ok = await copyText(shareUrl);
+    setCopiedType(ok ? 'link' : null);
+    if (ok) setTimeout(() => setCopiedType(null), 2500);
   };
 
   const handleNativeShare = async () => {
@@ -118,9 +118,13 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     }
   };
 
-  const handlePrintPdf = () => {
-    if (window.desktopPrint) window.desktopPrint();
-    else window.print();
+  const handlePrintPdf = async () => {
+    if (window.desktopPrintPreview) {
+      const report = document.querySelector('.print-only-container');
+      const css = Array.from(document.styleSheets).map((sheet) => { try { return Array.from(sheet.cssRules).map((rule) => rule.cssText).join('\\n'); } catch { return ''; } }).join('\\n');
+      const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش جلسات هیئت امنا</title><style>${css} @page{size:A4;margin:12mm} body{font-family:Vazirmatn,Tahoma,Arial,sans-serif;background:#fff;color:#0f172a} .print-only-container{display:block!important;max-height:none!important;overflow:visible!important}</style></head><body>${report?.outerHTML ?? '<p>گزارشی برای چاپ وجود ندارد.</p>'}</body></html>`;
+      await window.desktopPrintPreview(html);
+    } else { window.print(); }
   };
 
   return (
@@ -216,7 +220,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b-2 border-slate-900">
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">
-                گزارش مدیریتی جلسات کارگروه‌های تخصصی و حضور نمایندگان هیئت‌امنا
+                گزارش جلسات هیئت‌امنای سازمان تأمین اجتماعی و صندوق‌های تابعه
               </h1>
               <p className="text-xs text-slate-600 mt-1">
                 حسابرسی و بودجه · اقتصاد و سرمایه‌گذاری · بیمه و محاسبات اکچوئری · بهداشت و درمان
@@ -279,9 +283,9 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
                   </th>
-                  <th className="border border-slate-200 py-2 px-3 text-left">
-                    میزان ساعت حضور
-                  </th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">روزهای حضور</th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">میزان ساعت حضور</th>
+                  <th className="border border-slate-200 py-2 px-3">عناوین جلسات</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,10 +300,12 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                     <td className="border border-slate-200 py-2 px-3 text-left tabular-nums">
                       {toPersianDigits(st.sessionCount)}
                     </td>
+                    <td className="border border-slate-200 py-2 px-3 text-left">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="border border-slate-200 py-2 px-3 text-left tabular-nums font-semibold">
                       {formatMinutesToPersian(st.totalMinutes)} (
                       {formatMinutesToClock(st.totalMinutes)})
                     </td>
+                    <td className="border border-slate-200 py-2 px-3">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -321,9 +327,9 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
                   </th>
-                  <th className="border border-slate-200 py-2 px-3 text-left">
-                    میزان ساعت حضور
-                  </th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">روزهای حضور</th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">میزان ساعت حضور</th>
+                  <th className="border border-slate-200 py-2 px-3">عناوین جلسات</th>
                 </tr>
               </thead>
               <tbody>
@@ -340,9 +346,9 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                     <td className="border border-slate-200 py-2 px-3 text-left tabular-nums">
                       {toPersianDigits(st.sessionCount)}
                     </td>
-                    <td className="border border-slate-200 py-2 px-3 text-left tabular-nums font-semibold">
-                      {formatMinutesToPersian(st.totalMinutes)}
-                    </td>
+                    <td className="border border-slate-200 py-2 px-3 text-left">{toPersianDigits(st.attendanceDays)} روز</td>
+                    <td className="border border-slate-200 py-2 px-3 text-left tabular-nums font-semibold">{formatMinutesToPersian(st.totalMinutes)}</td>
+                    <td className="border border-slate-200 py-2 px-3">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                   </tr>
                 ))}
               </tbody>
