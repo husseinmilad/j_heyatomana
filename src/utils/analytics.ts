@@ -282,7 +282,7 @@ export function filterSessions(
           .map((a) => repMap.get(a.representativeId)?.fullName ?? '')
           .join(' ');
         const haystack = toEnglishDigits(
-          `${session.topic} ${session.reportSummary} ${committeeName} ${session.jalaliDate} ${attendeeNames}`
+          `${session.topic} ${session.reportSummary} ${committeeName} ${session.jalaliDate} ${session.startTime} ${session.endTime} ${session.letterNumber ?? ''} ${session.attachmentName ?? ''} ${attendeeNames} ${session.attendees.map((a) => repMap.get(a.representativeId)?.roleTitle ?? '').join(' ')}`
         ).toLowerCase();
         if (!haystack.includes(query)) return false;
       }
@@ -318,6 +318,8 @@ export function computeRepresentativeStats(
       committeeNames: rep.committeeIds.map((id) => COMMITTEE_MAP[id]?.name ?? id),
       sessionCount: 0,
       totalMinutes: 0,
+      attendanceDays: 0,
+      attendedSessionTitles: [],
       committeeBreakdown: createEmptyCommitteeBreakdown(),
     });
   }
@@ -334,11 +336,26 @@ export function computeRepresentativeStats(
       const mins = getAttendanceMinutes(session, att);
       stat.sessionCount += 1;
       stat.totalMinutes += mins;
+      stat.attendedSessionTitles.push(`${session.jalaliDate} · ${COMMITTEE_MAP[session.committeeId]?.name ?? session.committeeId} · ${session.topic}`);
       if (stat.committeeBreakdown[session.committeeId]) {
         stat.committeeBreakdown[session.committeeId].sessions += 1;
         stat.committeeBreakdown[session.committeeId].minutes += mins;
       }
     }
+  }
+
+  for (const stat of statsMap.values()) {
+    const dates = new Set<string>();
+    for (const session of sessions) if (session.attendees.some((att) => att.representativeId === stat.representative.id)) dates.add(session.jalaliDate);
+    stat.attendanceDays = dates.size;
+  }
+
+  for (const stat of statsMap.values()) {
+    const dates = new Set<string>();
+    for (const session of sessions) {
+      if (session.attendees.some((att) => { const rep = repMap.get(att.representativeId); return !!rep && getEffectiveTrusteeId(rep, session.committeeId) === stat.trustee.id; })) dates.add(session.jalaliDate);
+    }
+    stat.attendanceDays = dates.size;
   }
 
   return Array.from(statsMap.values()).sort((a, b) => {
@@ -367,6 +384,8 @@ export function computeTrusteeStats(
       sessionCount: 0,
       totalAttendances: 0,
       totalMinutes: 0,
+      attendanceDays: 0,
+      attendedSessionTitles: [],
       committeeBreakdown: createEmptyCommitteeBreakdown(),
     });
   }
@@ -388,6 +407,8 @@ export function computeTrusteeStats(
       const mins = getAttendanceMinutes(session, att);
       tStat.totalAttendances += 1;
       tStat.totalMinutes += mins;
+      const title = `${session.jalaliDate} · ${COMMITTEE_MAP[session.committeeId]?.name ?? session.committeeId} · ${session.topic}`;
+      if (!tStat.attendedSessionTitles.includes(title)) tStat.attendedSessionTitles.push(title);
 
       if (tStat.committeeBreakdown[session.committeeId]) {
         tStat.committeeBreakdown[session.committeeId].minutes += mins;
