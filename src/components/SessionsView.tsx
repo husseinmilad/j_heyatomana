@@ -105,7 +105,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
                   <th className="py-3 px-4">تاریخ (شمسی)</th>
-                  <th className="py-3 px-4">کارگروه</th>
+                  <th className="py-3 px-4">نوع جلسه / کارگروه</th>
                   <th className="py-3 px-4">ساعت و مدت</th>
                   <th className="py-3 px-4">موضوع و گزارش جلسه</th>
                   <th className="py-3 px-4">نمایندگان حاضر و عضو هیئت‌امنا</th>
