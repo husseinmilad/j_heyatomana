@@ -395,7 +395,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({
                     onClick={handleSelectAllCommitteeReps}
                     className="text-xs font-medium text-teal-700 hover:text-teal-900"
                   >
-                    انتخاب همه اعضای کارگروه
+                    {isAdHocGroup ? 'انتخاب همه نمایندگان' : 'انتخاب همه اعضای کارگروه'}
                   </button>
                 )}
                 {otherReps.length > 0 && (
