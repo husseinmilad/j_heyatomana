@@ -109,6 +109,7 @@ export default function App() {
     null
   );
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareParts, setShareParts] = useState<Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>>({ summary: true });
   const [backupModalOpen, setBackupModalOpen] = useState(false);
 
   // Subtle toast banner
@@ -130,6 +131,10 @@ export default function App() {
     }
   }, [db, isSharedMode]);
 
+  const openShareFor = (parts: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>) => { setShareParts(parts); setShareModalOpen(true); };
+
+  const hasActiveFilters = filters.searchQuery.trim() !== '' || filters.committeeId !== 'all' || filters.trusteeId !== 'all' || filters.representativeId !== 'all' || filters.dateFrom !== '' || filters.dateTo !== '';
+
   const filteredSessions = useMemo(
     () => filterSessions(db.sessions, filters, db.representatives),
     [db.sessions, filters, db.representatives]
@@ -141,19 +146,19 @@ export default function App() {
         filteredSessions,
         db.representatives,
         db.trustees
-      ),
-    [filteredSessions, db.representatives, db.trustees, db.committees]
+      ).filter((stat) => !hasActiveFilters || stat.sessionCount > 0),
+    [filteredSessions, db.representatives, db.trustees, db.committees, hasActiveFilters]
   );
 
   const trusteeStats = useMemo(
     () =>
-      computeTrusteeStats(filteredSessions, db.trustees, db.representatives),
-    [filteredSessions, db.trustees, db.representatives]
+      computeTrusteeStats(filteredSessions, db.trustees, db.representatives).filter((stat) => !hasActiveFilters || stat.sessionCount > 0),
+    [filteredSessions, db.trustees, db.representatives, hasActiveFilters]
   );
 
   const committeeStats = useMemo(
-    () => computeCommitteeStats(filteredSessions, db.committees ?? COMMITTEES),
-    [filteredSessions, db.committees]
+    () => computeCommitteeStats(filteredSessions, db.committees ?? COMMITTEES).filter((stat) => !hasActiveFilters || stat.sessionCount > 0),
+    [filteredSessions, db.committees, hasActiveFilters]
   );
 
   const monthlyTrend = useMemo(
@@ -346,7 +351,7 @@ export default function App() {
       <aside className="no-print hidden lg:flex lg:w-64 lg:flex-col lg:shrink-0 lg:sticky lg:top-0 lg:h-screen border-l border-slate-200 bg-white">
         <div className="h-16 px-5 flex items-center border-b border-slate-200">
           <span className="text-base font-extrabold text-slate-900 whitespace-nowrap">
-            مدیریت کارگروه‌ها
+            مدیریت جلسات هیئت امنا
           </span>
         </div>
 
@@ -504,7 +509,7 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setShareModalOpen(true)}
+              onClick={() => openShareFor(activeTab === 'dashboard' ? { summary: true } : activeTab === 'sessions' ? { sessions: true } : activeTab === 'reports' ? { trustees: true, representatives: true, committees: true } : { trustees: true, representatives: true, committees: true })}
               aria-label="گزارش PDF و اشتراک‌گذاری"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 sm:px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
             >
@@ -587,6 +592,7 @@ export default function App() {
                 setSessionModalOpen(true);
               }}
               onDeleteSession={handleDeleteSession}
+              onOpenSharePdf={() => openShareFor({ sessions: true })}
               isReadOnlyShared={isSharedMode}
             />
           )}
@@ -601,7 +607,7 @@ export default function App() {
               filters={filters}
               onFiltersChange={setFilters}
               onExportExcel={handleExportExcel}
-              onOpenSharePdf={() => setShareModalOpen(true)}
+              onOpenSharePdf={(parts) => openShareFor(parts ?? { trustees: true, representatives: true, committees: true })}
             />
           )}
 
@@ -617,7 +623,8 @@ export default function App() {
               onDeleteRepresentative={handleDeleteRepresentative}
               isReadOnlyShared={isSharedMode}
               usedCommitteeIds={[...new Set(db.sessions.map((session) => session.committeeId))]}
-              onCommitteesChange={() => { setDb((prev) => ({ ...prev, committees: [...COMMITTEES] })); showToast('فهرست کارگروه‌ها ذخیره شد.'); }}
+              onCommitteesChange={() => { setDb((prev) => ({ ...prev, committees: [...COMMITTEES] })); showToast('فهرست کارگروه‌ها، کمیته‌ها و نشست‌ها ذخیره شد.'); }}
+              onOpenShare={() => openShareFor({ trustees: true, representatives: true, committees: true })}
             />
           )}
         </main>
@@ -646,6 +653,7 @@ export default function App() {
         trusteeStats={trusteeStats}
         committeeStats={committeeStats}
         onExportExcel={handleExportExcel}
+        initialParts={shareParts}
       />
 
       <BackupRestoreModal
