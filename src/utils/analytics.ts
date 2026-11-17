@@ -235,7 +235,8 @@ export function filterSessions(
   representatives: Representative[]
 ): MeetingSession[] {
   const repMap = new Map(representatives.map((r) => [r.id, r]));
-  const query = toEnglishDigits(filters.searchQuery.trim()).toLowerCase();
+  const normalizeSearchText = (value: string) => toEnglishDigits(value).normalize('NFKC').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim().toLocaleLowerCase('fa');
+  const query = normalizeSearchText(filters.searchQuery);
 
   return sessions
     .filter((session) => {
@@ -281,9 +282,9 @@ export function filterSessions(
         const attendeeNames = session.attendees
           .map((a) => repMap.get(a.representativeId)?.fullName ?? '')
           .join(' ');
-        const haystack = toEnglishDigits(
+        const haystack = normalizeSearchText(
           `${session.topic} ${session.reportSummary} ${committeeName} ${session.jalaliDate} ${session.startTime} ${session.endTime} ${session.letterNumber ?? ''} ${session.attachmentName ?? ''} ${attendeeNames} ${session.attendees.map((a) => repMap.get(a.representativeId)?.roleTitle ?? '').join(' ')}`
-        ).toLowerCase();
+        );
         if (!haystack.includes(query)) return false;
       }
 
@@ -516,7 +517,7 @@ export function serializeBackup(state: AppDatabaseState): string {
   const payload: AppDatabaseBackup = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    appName: 'سامانه مدیریت جلسات کارگروه‌ها',
+    appName: 'مدیریت جلسات هیئت امنای سازمان تامین اجتماعی و صندوق های تابعه',
     committees: COMMITTEES,
     trustees: state.trustees,
     representatives: state.representatives,
