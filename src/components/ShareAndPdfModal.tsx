@@ -70,7 +70,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const buildShareUrl = () => {
-    const needsSessions = printParts.summary || printParts.committees || printParts.sessions;
+    const needsSessions = printParts.summary || printParts.committees || printParts.sessions || printParts.trustees || printParts.representatives;
     const needsPeople = printParts.trustees || printParts.representatives;
     const encoded = encodeSharePayload({
       trustees: needsPeople ? trustees : [],
