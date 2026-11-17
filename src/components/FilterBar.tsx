@@ -48,7 +48,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             htmlFor="filter-search"
             className="block text-xs font-medium text-slate-600 mb-1"
           >
-            جستجو در موضوع و گزارش
+            جستجو در تمام اطلاعات جلسات
           </label>
           <div className="relative">
             <input
@@ -58,7 +58,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               onChange={(e) =>
                 onChange({ ...filters, searchQuery: e.target.value })
               }
-              placeholder="جستجوی موضوع، تاریخ..."
+              placeholder="موضوع، تاریخ، نماینده، شماره نامه..."
               className="w-full rounded-lg border border-slate-200 bg-white pr-8 pl-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-700"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
