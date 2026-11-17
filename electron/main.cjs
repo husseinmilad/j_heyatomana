@@ -72,14 +72,13 @@ ipcMain.handle('desktop-print-preview', async (event, html) => {
   const preview = new BrowserWindow({ width: 1100, height: 850, show: true, autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false } });
   const safeHtml = String(html ?? '');
   await preview.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(safeHtml));
-  preview.webContents.on('did-finish-load', async () => {
-    try {
-      const pdf = await preview.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0.35, bottom: 0.35, left: 0.35, right: 0.35 } });
-      const pdfPath = path.join(app.getPath('temp'), `heyatomana-report-${Date.now()}.pdf`);
-      fs.writeFileSync(pdfPath, pdf);
-      await shell.openPath(pdfPath);
-    } catch (error) { console.error('PDF preview failed:', error); }
-  });
+  try {
+    const pdf = await preview.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0.35, bottom: 0.35, left: 0.35, right: 0.35 } });
+    const pdfPath = path.join(app.getPath('temp'), `heyatomana-report-${Date.now()}.pdf`);
+    fs.writeFileSync(pdfPath, pdf);
+    const openError = await shell.openPath(pdfPath);
+    if (openError) console.error('Could not open PDF preview:', openError);
+  } catch (error) { console.error('PDF preview failed:', error); preview.close(); }
 });
 
 function createWindow() {
