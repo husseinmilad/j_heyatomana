@@ -237,67 +237,92 @@ export function filterSessions(
 ): MeetingSession[] {
   const repMap = new Map(representatives.map((r) => [r.id, r]));
   const trusteeMap = new Map(trustees.map((t) => [t.id, t]));
-  const normalizeSearchText = (value: string) => toEnglishDigits(value).normalize('NFKC').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim().toLocaleLowerCase('fa');
-  const query = normalizeSearchText(filters.searchQuery);
+  const normalize = (value: string) => toEnglishDigits(value)
+    .normalize('NFKC')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[ـ\u064B-\u065F]/g, '')
+    .replace(/[\u200c\u200f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('fa');
+  const query = normalize(filters.searchQuery ?? '');
+  const mode = filters.searchMode ?? 'all';
+  const field = filters.searchField ?? 'all';
+  const terms = mode === 'exact'
+    ? [query]
+    : Array.from(query.matchAll(/"([^"]+)"|(\S+)/g), (match) => normalize(match[1] ?? match[2])).filter(Boolean);
 
-  return sessions
-    .filter((session) => {
-      if (
-        filters.committeeId !== 'all' &&
-        session.committeeId !== filters.committeeId
-      ) {
-        return false;
+  const withinNumericRange = (value: number, minText?: string, maxText?: string) => {
+    const min = minText?.trim() ? Number(toEnglishDigits(minText)) : undefined;
+    const max = maxText?.trim() ? Number(toEnglishDigits(maxText)) : undefined;
+    if (min !== undefined && Number.isFinite(min) && value < min) return false;
+    if (max !== undefined && Number.isFinite(max) && value > max) return false;
+    return true;
+  };
+
+  return sessions.filter((session) => {
+    const committee = COMMITTEE_MAP[session.committeeId];
+    if (filters.committeeId !== 'all' && session.committeeId !== filters.committeeId) return false;
+    if (filters.committeeCategory && filters.committeeCategory !== 'all' && (committee?.category ?? 'کارگروه') !== filters.committeeCategory) return false;
+    if (filters.dateFrom && isValidJalaliDate(filters.dateFrom) && compareJalaliDates(session.jalaliDate, filters.dateFrom) < 0) return false;
+    if (filters.dateTo && isValidJalaliDate(filters.dateTo) && compareJalaliDates(session.jalaliDate, filters.dateTo) > 0) return false;
+    if (filters.representativeId !== 'all' && !session.attendees.some((a) => a.representativeId === filters.representativeId)) return false;
+    if (filters.trusteeId !== 'all' && !session.attendees.some((a) => {
+      const rep = repMap.get(a.representativeId);
+      return !!rep && getEffectiveTrusteeId(rep, session.committeeId) === filters.trusteeId;
+    })) return false;
+
+    const start = parseTimeToMinutes(session.startTime);
+    const from = filters.startTimeFrom ? parseTimeToMinutes(filters.startTimeFrom) : null;
+    const to = filters.startTimeTo ? parseTimeToMinutes(filters.startTimeTo) : null;
+    if (from !== null && (start === null || start < from)) return false;
+    if (to !== null && (start === null || start > to)) return false;
+    if (!withinNumericRange(session.durationMinutes, filters.minDuration, filters.maxDuration)) return false;
+    if (!withinNumericRange(session.attendees.length, filters.minAttendees, filters.maxAttendees)) return false;
+
+    const hasAttachment = Boolean(session.attachmentData || session.attachmentName);
+    if (filters.attachmentStatus === 'with' && !hasAttachment) return false;
+    if (filters.attachmentStatus === 'without' && hasAttachment) return false;
+
+    if (query) {
+      const repNames: string[] = [];
+      const repRoles: string[] = [];
+      const trusteeNames: string[] = [];
+      for (const attendee of session.attendees) {
+        const rep = repMap.get(attendee.representativeId);
+        if (!rep) continue;
+        repNames.push(rep.fullName);
+        if (rep.roleTitle) repRoles.push(rep.roleTitle);
+        const trusteeId = getEffectiveTrusteeId(rep, session.committeeId);
+        const trusteeName = trusteeMap.get(trusteeId)?.fullName;
+        if (trusteeName) trusteeNames.push(trusteeName);
       }
-
-      if (filters.dateFrom && isValidJalaliDate(filters.dateFrom)) {
-        if (compareJalaliDates(session.jalaliDate, filters.dateFrom) < 0) {
-          return false;
-        }
-      }
-
-      if (filters.dateTo && isValidJalaliDate(filters.dateTo)) {
-        if (compareJalaliDates(session.jalaliDate, filters.dateTo) > 0) {
-          return false;
-        }
-      }
-
-      if (filters.representativeId !== 'all') {
-        const hasRep = session.attendees.some(
-          (a) => a.representativeId === filters.representativeId
-        );
-        if (!hasRep) return false;
-      }
-
-      if (filters.trusteeId !== 'all') {
-        const hasTrusteeRep = session.attendees.some((a) => {
-          const rep = repMap.get(a.representativeId);
-          if (!rep) return false;
-          return (
-            getEffectiveTrusteeId(rep, session.committeeId) === filters.trusteeId
-          );
-        });
-        if (!hasTrusteeRep) return false;
-      }
-
-      if (query) {
-        const committee = COMMITTEE_MAP[session.committeeId];
-        const committeeName = committee?.name ?? '';
-        const attendeeNames = session.attendees.map((a) => repMap.get(a.representativeId)?.fullName ?? '').join(' ');
-        const attendeeRoles = session.attendees.map((a) => repMap.get(a.representativeId)?.roleTitle ?? '').join(' ');
-        const trusteeNames = session.attendees.map((a) => { const rep = repMap.get(a.representativeId); const trusteeId = rep ? getEffectiveTrusteeId(rep, session.committeeId) : ''; return trusteeMap.get(trusteeId)?.fullName ?? ''; }).join(' ');
-        const haystack = normalizeSearchText(
-          `${session.topic} ${session.reportSummary} ${committeeName} ${committee?.category ?? ''} ${session.jalaliDate} ${session.startTime} ${session.endTime} ${session.letterNumber ?? ''} ${session.attachmentName ?? ''} ${attendeeNames} ${attendeeRoles} ${trusteeNames}`
-        );
-        if (!haystack.includes(query)) return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      const dateDiff = compareJalaliDates(b.jalaliDate, a.jalaliDate);
-      if (dateDiff !== 0) return dateDiff;
-      return b.startTime.localeCompare(a.startTime);
-    });
+      const valuesByField: Record<NonNullable<FilterState['searchField']>, string[]> = {
+        all: [session.topic, session.reportSummary, committee?.name ?? '', committee?.description ?? '', committee?.category ?? '', session.jalaliDate, session.startTime, session.endTime, session.letterNumber ?? '', session.attachmentName ?? '', ...repNames, ...repRoles, ...trusteeNames],
+        topic: [session.topic],
+        summary: [session.reportSummary],
+        people: [...repNames, ...repRoles, ...trusteeNames],
+        committee: [committee?.name ?? '', committee?.description ?? '', committee?.category ?? ''],
+        letter: [session.letterNumber ?? ''],
+        attachment: [session.attachmentName ?? ''],
+        date: [session.jalaliDate],
+        time: [session.startTime, session.endTime, String(session.durationMinutes)],
+      };
+      const haystack = normalize(valuesByField[field].join(' '));
+      const matches = mode === 'exact'
+        ? haystack.includes(query)
+        : mode === 'any'
+          ? terms.some((term) => haystack.includes(term))
+          : terms.every((term) => haystack.includes(term));
+      if (!matches) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    const dateDiff = compareJalaliDates(b.jalaliDate, a.jalaliDate);
+    if (dateDiff !== 0) return dateDiff;
+    return b.startTime.localeCompare(a.startTime);
+  });
 }
 
 function createEmptyCommitteeBreakdown(): Record<
