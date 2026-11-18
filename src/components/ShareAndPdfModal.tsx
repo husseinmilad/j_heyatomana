@@ -93,7 +93,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
       trustees: matchingTrustees,
       representatives: matchingRepresentatives,
       // Always include the filtered records needed to render the shared page. Attachments are excluded from URL shares.
-      sessions: sessions.map(({ attachmentData: _attachmentData, ...session }) => session),
+      sessions: sessions.map(({ attachmentData, ...session }) => ({ ...session, attachmentName: session.attachmentName ?? (attachmentData ? 'پیوست' : undefined) })),
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
