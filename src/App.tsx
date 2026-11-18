@@ -591,6 +591,15 @@ export default function App() {
 
         {/* Main Viewport */}
         <main className="no-print flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
+          {isSharedMode && (
+            <div role="status" className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900">
+              <div className="font-bold">نمای اشتراکی فقط‌خواندنی · {activeTitle}</div>
+              <p className="mt-1">اطلاعات این صفحه از نتایج فیلترشدهٔ فرستنده تهیه شده است و داده‌های اصلی دستگاه شما را تغییر نمی‌دهد.</p>
+              {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('criteria') && (
+                <p className="mt-1 text-sky-800">شرایط جستجو و فیلتر فرستنده: {new URLSearchParams(window.location.search).get('criteria')}</p>
+              )}
+            </div>
+          )}
           {activeTab === 'dashboard' && (
             <DashboardView
               sessions={dashboardSessions}
