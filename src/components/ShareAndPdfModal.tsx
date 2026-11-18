@@ -12,6 +12,7 @@ import {
   ActiveTab,
   CommitteeStat,
   MeetingSession,
+  FilterState,
   Representative,
   RepresentativeStat,
   Trustee,
@@ -40,6 +41,7 @@ interface ShareAndPdfModalProps {
   initialParts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>;
   scopeTitle?: string;
   filterSummary?: string;
+  filterState?: FilterState;
   shareScope?: ActiveTab;
 }
 
@@ -56,6 +58,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   initialParts,
   scopeTitle = 'گزارش جلسات',
   filterSummary = 'بدون فیلتر',
+  filterState,
   shareScope = 'dashboard',
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
@@ -91,12 +94,18 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     const encoded = encodeSharePayload({
       trustees: needsPeople ? matchingTrustees : [],
       representatives: needsPeople ? matchingRepresentatives : [],
-      sessions: needsSessions ? sessions : [],
+      // Attachments are excluded from URL shares: they are not part of report data and can expose documents or create huge links.
+      sessions: needsSessions ? sessions.map(({ attachmentData: _attachmentData, ...session }) => session) : [],
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
     url.searchParams.set('view', shareScope);
     url.searchParams.set('criteria', filterSummary);
+    const filterBytes = new TextEncoder().encode(JSON.stringify(filterState ?? {}));
+    let filterBinary = '';
+    for (let i = 0; i < filterBytes.length; i += 1) filterBinary += String.fromCharCode(filterBytes[i]);
+    url.searchParams.set('filters', btoa(filterBinary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, ''));
+    url.searchParams.set('parts', Object.entries(printParts).filter(([, enabled]) => enabled).map(([key]) => key).join(','));
     return url.toString();
   };
 
