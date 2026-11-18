@@ -22,6 +22,7 @@ import { DEFAULT_FILTERS, FilterBar } from './FilterBar';
 
 interface DashboardViewProps {
   sessions: MeetingSession[];
+  totalSessionsCount: number;
   trustees: Trustee[];
   representatives: Representative[];
   repStats: RepresentativeStat[];
@@ -39,6 +40,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   sessions,
+  totalSessionsCount,
   trustees,
   representatives,
   repStats,
@@ -149,6 +151,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         trustees={trustees}
         representatives={representatives}
         scopeLabel="داشبورد"
+        resultCount={sessions.length}
+        totalCount={totalSessionsCount}
       />
 
       {/* Charts */}
