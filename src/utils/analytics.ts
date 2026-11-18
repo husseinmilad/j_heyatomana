@@ -356,7 +356,7 @@ export function filterSessions(
       };
       const selectedField = normalized.searchField ?? 'all';
       const valueFor = (field: SearchableField | null) => normalizeSearchValue(valuesByField[field ?? selectedField] ?? valuesByField.all);
-      const useAny = normalized.searchMode === 'any' || /\\s(?:OR|\\|)\\s/i.test(normalized.searchQuery ?? '');
+      const useAny = normalized.searchMode === 'any' || /\s(?:OR|\|)\s/i.test(normalized.searchQuery ?? '');
       const positivesMatch = positiveTokens.length === 0 || (useAny
         ? positiveTokens.some((token) => valueFor(token.field).includes(token.value))
         : positiveTokens.every((token) => valueFor(token.field).includes(token.value)));
