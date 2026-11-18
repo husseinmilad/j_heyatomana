@@ -100,7 +100,9 @@ export default function App() {
   );
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [dashboardFilters, setDashboardFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [sessionsFilters, setSessionsFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [reportsFilters, setReportsFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Modals
@@ -110,6 +112,7 @@ export default function App() {
   );
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareParts, setShareParts] = useState<Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>>({ summary: true });
+  const [shareScope, setShareScope] = useState<ActiveTab>('dashboard');
   const [backupModalOpen, setBackupModalOpen] = useState(false);
 
   // Subtle toast banner
@@ -131,40 +134,60 @@ export default function App() {
     }
   }, [db, isSharedMode]);
 
-  const openShareFor = (parts: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>) => { setShareParts(parts); setShareModalOpen(true); };
+  const hasFilters = (value: FilterState) => Object.entries({ ...DEFAULT_FILTERS, ...value }).some(([key, current]) => current !== DEFAULT_FILTERS[key as keyof FilterState] && current !== '' && current !== undefined);
+  const summarizeFilters = (value: FilterState) => {
+    const f = { ...DEFAULT_FILTERS, ...value };
+    const parts = [
+      f.searchQuery ? `عبارت: ${f.searchQuery}` : '',
+      f.searchMode !== 'all' ? `روش: ${f.searchMode === 'any' ? 'هر واژه' : 'عبارت دقیق'}` : '',
+      f.searchField !== 'all' ? `حوزه جستجو: ${f.searchField}` : '',
+      f.committeeId !== 'all' ? `نوع جلسه: ${COMMITTEES.find((x) => x.id === f.committeeId)?.name ?? f.committeeId}` : '',
+      f.committeeCategory !== 'all' ? `دسته: ${f.committeeCategory}` : '',
+      f.trusteeId !== 'all' ? `عضو: ${db.trustees.find((x) => x.id === f.trusteeId)?.fullName ?? ''}` : '',
+      f.representativeId !== 'all' ? `نماینده: ${db.representatives.find((x) => x.id === f.representativeId)?.fullName ?? ''}` : '',
+      f.dateFrom ? `از ${f.dateFrom}` : '',
+      f.dateTo ? `تا ${f.dateTo}` : '',
+      f.startTimeFrom ? `ساعت شروع از ${f.startTimeFrom}` : '',
+      f.startTimeTo ? `ساعت شروع تا ${f.startTimeTo}` : '',
+      f.minDuration ? `حداقل مدت ${f.minDuration} دقیقه` : '',
+      f.maxDuration ? `حداکثر مدت ${f.maxDuration} دقیقه` : '',
+      f.minAttendees ? `حداقل حاضران ${f.minAttendees}` : '',
+      f.maxAttendees ? `حداکثر حاضران ${f.maxAttendees}` : '',
+      f.attachmentStatus !== 'all' ? (f.attachmentStatus === 'with' ? 'دارای پیوست' : 'بدون پیوست') : '',
+    ].filter(Boolean);
+    return parts.length ? parts.join(' | ') : 'بدون فیلتر';
+  };
 
-  const hasActiveFilters = filters.searchQuery.trim() !== '' || filters.committeeId !== 'all' || filters.trusteeId !== 'all' || filters.representativeId !== 'all' || filters.dateFrom !== '' || filters.dateTo !== '';
+  const dashboardSessions = useMemo(() => filterSessions(db.sessions, dashboardFilters, db.representatives, db.trustees), [db.sessions, dashboardFilters, db.representatives, db.trustees]);
+  const sessionList = useMemo(() => filterSessions(db.sessions, sessionsFilters, db.representatives, db.trustees), [db.sessions, sessionsFilters, db.representatives, db.trustees]);
+  const reportSessions = useMemo(() => filterSessions(db.sessions, reportsFilters, db.representatives, db.trustees), [db.sessions, reportsFilters, db.representatives, db.trustees]);
 
-  const filteredSessions = useMemo(
-    () => filterSessions(db.sessions, filters, db.representatives, db.trustees),
-    [db.sessions, filters, db.representatives]
-  );
+  const buildStats = (sessions: MeetingSession[], filtersForScope: FilterState) => {
+    const active = hasFilters(filtersForScope);
+    return {
+      repStats: computeRepresentativeStats(sessions, db.representatives, db.trustees).filter((stat) => !active || stat.sessionCount > 0),
+      trusteeStats: computeTrusteeStats(sessions, db.trustees, db.representatives).filter((stat) => !active || stat.sessionCount > 0),
+      committeeStats: computeCommitteeStats(sessions, db.committees ?? COMMITTEES).filter((stat) => !active || stat.sessionCount > 0),
+    };
+  };
+  const dashboardStats = useMemo(() => buildStats(dashboardSessions, dashboardFilters), [dashboardSessions, dashboardFilters, db.representatives, db.trustees, db.committees]);
+  const sessionStats = useMemo(() => buildStats(sessionList, sessionsFilters), [sessionList, sessionsFilters, db.representatives, db.trustees, db.committees]);
+  const reportStats = useMemo(() => buildStats(reportSessions, reportsFilters), [reportSessions, reportsFilters, db.representatives, db.trustees, db.committees]);
+  const monthlyTrend = useMemo(() => computeMonthlyTrend(dashboardSessions), [dashboardSessions]);
 
-  const repStats = useMemo(
-    () =>
-      computeRepresentativeStats(
-        filteredSessions,
-        db.representatives,
-        db.trustees
-      ).filter((stat) => !hasActiveFilters || stat.sessionCount > 0),
-    [filteredSessions, db.representatives, db.trustees, db.committees, hasActiveFilters]
-  );
+  const openShareFor = (parts: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>, scope: ActiveTab = activeTab) => {
+    setShareScope(scope);
+    setShareParts(parts);
+    setShareModalOpen(true);
+  };
 
-  const trusteeStats = useMemo(
-    () =>
-      computeTrusteeStats(filteredSessions, db.trustees, db.representatives).filter((stat) => !hasActiveFilters || stat.sessionCount > 0),
-    [filteredSessions, db.trustees, db.representatives, hasActiveFilters]
-  );
-
-  const committeeStats = useMemo(
-    () => computeCommitteeStats(filteredSessions, db.committees ?? COMMITTEES).filter((stat) => !hasActiveFilters || stat.sessionCount > 0),
-    [filteredSessions, db.committees, hasActiveFilters]
-  );
-
-  const monthlyTrend = useMemo(
-    () => computeMonthlyTrend(filteredSessions),
-    [filteredSessions]
-  );
+  const shareData = shareScope === 'sessions'
+    ? { sessions: sessionList, stats: sessionStats, filterText: summarizeFilters(sessionsFilters), title: 'ثبت و فهرست جلسات' }
+    : shareScope === 'reports'
+      ? { sessions: reportSessions, stats: reportStats, filterText: summarizeFilters(reportsFilters), title: 'گزارش تفکیکی حضور' }
+      : shareScope === 'directory'
+        ? { sessions: db.sessions, stats: buildStats(db.sessions, DEFAULT_FILTERS), filterText: 'بدون فیلتر', title: 'فهرست اعضا و کارگروه‌ها' }
+        : { sessions: dashboardSessions, stats: dashboardStats, filterText: summarizeFilters(dashboardFilters), title: 'داشبورد مدیریتی' };
 
   // Session CRUD
   const handleSaveSession = (
@@ -283,20 +306,28 @@ export default function App() {
 
   const handleResetToSeed = () => {
     setDb(INITIAL_SEED_STATE);
-    setFilters(DEFAULT_FILTERS);
+    setDashboardFilters(DEFAULT_FILTERS);
+    setSessionsFilters(DEFAULT_FILTERS);
+    setReportsFilters(DEFAULT_FILTERS);
     showToast('داده‌ها به حالت نمونه اولیه بازگردانی شد.');
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcelFor = (sessions: MeetingSession[], stats: ReturnType<typeof buildStats>) => {
     const filename = exportToExcel({
-      sessions: filteredSessions,
+      sessions,
       representatives: db.representatives,
       trustees: db.trustees,
-      repStats,
-      trusteeStats,
-      committeeStats,
+      repStats: stats.repStats,
+      trusteeStats: stats.trusteeStats,
+      committeeStats: stats.committeeStats,
     });
     showToast(`فایل اکسل ${filename} صادر شد.`);
+  };
+  const handleExportExcel = () => {
+    if (activeTab === 'sessions') handleExportExcelFor(sessionList, sessionStats);
+    else if (activeTab === 'reports') handleExportExcelFor(reportSessions, reportStats);
+    else if (activeTab === 'directory') handleExportExcelFor(db.sessions, buildStats(db.sessions, DEFAULT_FILTERS));
+    else handleExportExcelFor(dashboardSessions, dashboardStats);
   };
 
   const handleExitSharedMode = () => {
