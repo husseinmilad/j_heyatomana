@@ -356,13 +356,14 @@ export function filterSessions(
       };
       const selectedField = normalized.searchField ?? 'all';
       const valueFor = (field: SearchableField | null) => normalizeSearchValue(valuesByField[field ?? selectedField] ?? valuesByField.all);
-      const positivesMatch = positiveTokens.length === 0 || (normalized.searchMode === 'any'
+      const useAny = normalized.searchMode === 'any' || /\\s(?:OR|\\|)\\s/i.test(normalized.searchQuery ?? '');
+      const positivesMatch = positiveTokens.length === 0 || (useAny
         ? positiveTokens.some((token) => valueFor(token.field).includes(token.value))
         : positiveTokens.every((token) => valueFor(token.field).includes(token.value)));
       if (!positivesMatch) return false;
       if (negativeTokens.some((token) => valueFor(token.field).includes(token.value))) return false;
       if (normalized.searchMode === 'exact' && positiveTokens.length === 0 && !valueFor(null).includes(query)) return false;
-      if (normalized.searchMode === 'exact' && positiveTokens.length > 0) {
+      if (normalized.searchMode === 'exact' && positiveTokens.length > 0 && positiveTokens.every((token) => token.field === null)) {
         const exactValue = positiveTokens.map((token) => token.value).join(' ');
         if (!valueFor(null).includes(exactValue)) return false;
       }
