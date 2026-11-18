@@ -164,11 +164,13 @@ export default function App() {
 
   const buildStats = (sessions: MeetingSession[], filtersForScope: FilterState) => {
     const active = hasFilters(filtersForScope);
-    return {
-      repStats: computeRepresentativeStats(sessions, db.representatives, db.trustees).filter((stat) => !active || stat.sessionCount > 0),
-      trusteeStats: computeTrusteeStats(sessions, db.trustees, db.representatives).filter((stat) => !active || stat.sessionCount > 0),
-      committeeStats: computeCommitteeStats(sessions, db.committees ?? COMMITTEES).filter((stat) => !active || stat.sessionCount > 0),
-    };
+    const activeRepresentativeIds = new Set(sessions.flatMap((session) => session.attendees.map((attendee) => attendee.representativeId)));
+    const repStats = computeRepresentativeStats(sessions, db.representatives, db.trustees).filter((stat) => !active || stat.sessionCount > 0);
+    const trusteeStats = computeTrusteeStats(sessions, db.trustees, db.representatives)
+      .filter((stat) => !active || stat.sessionCount > 0)
+      .map((stat) => active ? { ...stat, representatives: stat.representatives.filter((rep) => activeRepresentativeIds.has(rep.id)) } : stat);
+    const committeeStats = computeCommitteeStats(sessions, db.committees ?? COMMITTEES).filter((stat) => !active || stat.sessionCount > 0);
+    return { repStats, trusteeStats, committeeStats };
   };
   const dashboardStats = useMemo(() => buildStats(dashboardSessions, dashboardFilters), [dashboardSessions, dashboardFilters, db.representatives, db.trustees, db.committees]);
   const sessionStats = useMemo(() => buildStats(sessionList, sessionsFilters), [sessionList, sessionsFilters, db.representatives, db.trustees, db.committees]);
