@@ -17,6 +17,8 @@ interface FilterBarProps {
   representatives: Representative[];
   committees?: Committee[];
   scopeLabel?: string;
+  resultCount?: number;
+  totalCount?: number;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -45,6 +47,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   representatives,
   committees = COMMITTEES,
   scopeLabel = 'جلسات',
+  resultCount,
+  totalCount,
 }) => {
   const patch = (values: Partial<FilterState>) => onChange({ ...DEFAULT_FILTERS, ...filters, ...values });
   const normalized = { ...DEFAULT_FILTERS, ...filters };
@@ -55,6 +59,22 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
   const inputClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/15';
   const labelClass = 'mb-1 block text-[11px] font-medium text-slate-600';
+  const activeLabels = [
+    normalized.searchQuery ? { label: 'جستجو: ' + normalized.searchQuery, key: 'searchQuery' as const } : null,
+    normalized.committeeId !== 'all' ? { label: 'جلسه: ' + (committees.find((x) => x.id === normalized.committeeId)?.name ?? normalized.committeeId), key: 'committeeId' as const } : null,
+    normalized.committeeCategory !== 'all' ? { label: 'دسته: ' + normalized.committeeCategory, key: 'committeeCategory' as const } : null,
+    normalized.trusteeId !== 'all' ? { label: 'عضو: ' + (trustees.find((x) => x.id === normalized.trusteeId)?.fullName ?? ''), key: 'trusteeId' as const } : null,
+    normalized.representativeId !== 'all' ? { label: 'نماینده: ' + (representatives.find((x) => x.id === normalized.representativeId)?.fullName ?? ''), key: 'representativeId' as const } : null,
+    normalized.dateFrom ? { label: 'از تاریخ: ' + normalized.dateFrom, key: 'dateFrom' as const } : null,
+    normalized.dateTo ? { label: 'تا تاریخ: ' + normalized.dateTo, key: 'dateTo' as const } : null,
+    normalized.startTimeFrom ? { label: 'از ساعت: ' + normalized.startTimeFrom, key: 'startTimeFrom' as const } : null,
+    normalized.startTimeTo ? { label: 'تا ساعت: ' + normalized.startTimeTo, key: 'startTimeTo' as const } : null,
+    normalized.minDuration ? { label: 'حداقل مدت: ' + normalized.minDuration, key: 'minDuration' as const } : null,
+    normalized.maxDuration ? { label: 'حداکثر مدت: ' + normalized.maxDuration, key: 'maxDuration' as const } : null,
+    normalized.minAttendees ? { label: 'حداقل حاضران: ' + normalized.minAttendees, key: 'minAttendees' as const } : null,
+    normalized.maxAttendees ? { label: 'حداکثر حاضران: ' + normalized.maxAttendees, key: 'maxAttendees' as const } : null,
+    normalized.attachmentStatus !== 'all' ? { label: normalized.attachmentStatus === 'with' ? 'دارای پیوست' : 'بدون پیوست', key: 'attachmentStatus' as const } : null,
+  ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3" aria-label={`جستجو و فیلتر ${scopeLabel}`}>
@@ -63,17 +83,30 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <div className="rounded-lg bg-teal-50 p-2 text-teal-700"><Search className="h-4 w-4" /></div>
           <div>
             <h3 className="text-sm font-bold text-slate-800">جستجو و فیلتر هوشمند {scopeLabel}</h3>
-            <p className="text-[11px] text-slate-500">جستجوی چندعبارتی، دقیق و ترکیبی؛ همه فیلترها هم‌زمان اعمال می‌شوند.</p>
+            <p className="text-[11px] text-slate-500">جستجوی چندعبارتی، عبارت داخل گیومه، حذف با - و جستجوی حوزه‌ای مثل نماینده:نام یا موضوع:عبارت</p>
           </div>
         </div>
         {hasActiveFilters && <button type="button" onClick={() => onChange(DEFAULT_FILTERS)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"><RotateCcw className="h-3.5 w-3.5" />پاک‌کردن فیلترها</button>}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2" aria-live="polite">
+        <div className="flex items-center gap-2 text-xs text-slate-700">
+          <span className="font-bold tabular-nums">{resultCount === undefined ? '—' : resultCount.toLocaleString('fa-IR')}</span>
+          <span>نتیجه از</span>
+          <span className="font-semibold tabular-nums">{totalCount === undefined ? '—' : totalCount.toLocaleString('fa-IR')}</span>
+          <span>جلسه</span>
+          {activeLabels.length > 0 && <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] text-teal-800">{activeLabels.length.toLocaleString('fa-IR')} شرط فعال</span>}
+        </div>
+        {resultCount === 0 && <span className="text-[11px] text-amber-700">نتیجه‌ای پیدا نشد؛ عبارت یا فیلترها را تغییر دهید.</span>}
+      </div>
+      {activeLabels.length > 0 && <div className="flex flex-wrap gap-1.5">
+        {activeLabels.map((item) => <button key={item.key} type="button" onClick={() => patch({ [item.key]: DEFAULT_FILTERS[item.key] } as Partial<FilterState>)} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] text-slate-600 hover:border-rose-200 hover:text-rose-700" title="حذف این شرط">{item.label}<span aria-hidden="true">×</span></button>)}
+      </div>}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
         <div className="md:col-span-6">
           <label htmlFor="filter-search" className={labelClass}>عبارت جستجو</label>
           <div className="relative">
-            <input id="filter-search" type="search" autoComplete="off" value={normalized.searchQuery} onChange={(e) => patch({ searchQuery: e.target.value })} placeholder="مثلاً: بودجه ۱۴۰۵، نام نماینده، شماره نامه..." className={`${inputClass} pr-9`} />
+            <input id="filter-search" type="search" autoComplete="off" value={normalized.searchQuery} onChange={(e) => patch({ searchQuery: e.target.value })} placeholder="مثلاً: بودجه ۱۴۰۵، نماینده:احمدی، موضوع:بودجه، -پیوست:..." className={`${inputClass} pr-9`} />
             <Search className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           </div>
         </div>
