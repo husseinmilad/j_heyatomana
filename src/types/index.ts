@@ -52,6 +52,16 @@ export interface FilterState {
   representativeId: string | 'all';
   dateFrom: string; // "" or YYYY/MM/DD
   dateTo: string; // "" or YYYY/MM/DD
+  searchMode?: 'all' | 'any' | 'exact';
+  searchField?: 'all' | 'topic' | 'summary' | 'people' | 'committee' | 'letter' | 'attachment' | 'date' | 'time';
+  committeeCategory?: 'all' | 'کارگروه' | 'کمیته' | 'نشست';
+  startTimeFrom?: string;
+  startTimeTo?: string;
+  minDuration?: string;
+  maxDuration?: string;
+  minAttendees?: string;
+  maxAttendees?: string;
+  attachmentStatus?: 'all' | 'with' | 'without';
 }
 
 export interface AppDatabaseState {
