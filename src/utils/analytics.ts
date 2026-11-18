@@ -257,19 +257,13 @@ function parseSearchTokens(raw: string) {
     'ساعت': 'time', 'مدت': 'time', 'time': 'time',
   };
   const tokens: Array<{ value: string; field: SearchableField | null; exclude: boolean }> = [];
-  const matcher = /"([^"]+)"|'([^']+)'|(\S+)/g;
+  const matcher = /(-)?(?:([^\s:]+):)?(?:"([^"]+)"|'([^']+)'|(\S+))/g;
   for (const match of raw.matchAll(matcher)) {
-    let value = (match[1] ?? match[2] ?? match[3] ?? '').trim();
+    const exclude = match[1] === '-';
+    const alias = match[2] ? normalizeSearchValue(match[2]) : '';
+    let value = (match[3] ?? match[4] ?? match[5] ?? '').trim();
     if (!value || value.toUpperCase() === 'OR' || value === '|') continue;
-    const exclude = value.startsWith('-') && value.length > 1;
-    if (exclude) value = value.slice(1);
-    let field: SearchableField | null = null;
-    const colon = value.indexOf(':');
-    if (colon > 0) {
-      const alias = normalizeSearchValue(value.slice(0, colon));
-      field = aliases[alias] ?? null;
-      if (field) value = value.slice(colon + 1);
-    }
+    const field = aliases[alias] ?? null;
     value = normalizeSearchValue(value);
     if (value) tokens.push({ value, field, exclude });
   }
