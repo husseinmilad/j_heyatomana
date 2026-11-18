@@ -35,6 +35,7 @@ import {
   computeMonthlyTrend,
   computeRepresentativeStats,
   computeTrusteeStats,
+  getEffectiveTrusteeId,
   decodeSharePayload,
   loadSavedCommittees,
   persistCommittees,
@@ -46,6 +47,29 @@ import { exportToExcel } from './utils/exporters';
 import { formatJalaliWithWeekday, getTodayJalali, toPersianDigits } from './utils/jalali';
 
 const STORAGE_KEY = 'kargoroh_dashboard_db_v2';
+
+function readSharedFilterState(): FilterState {
+  try {
+    const encoded = new URLSearchParams(window.location.search).get('filters');
+    if (!encoded) return DEFAULT_FILTERS;
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as Partial<FilterState>;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return DEFAULT_FILTERS;
+    const safe = { ...DEFAULT_FILTERS };
+    (Object.keys(DEFAULT_FILTERS) as Array<keyof FilterState>).forEach((key) => {
+      const candidate = parsed[key];
+      if (typeof candidate === typeof DEFAULT_FILTERS[key]) {
+        (safe as Record<string, unknown>)[key] = candidate;
+      }
+    });
+    return safe;
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+}
 
 function getAppStorage(): Pick<Storage, 'getItem' | 'setItem'> {
   return window.desktopStorage ?? window.localStorage;
@@ -106,9 +130,9 @@ export default function App() {
     }
     return 'dashboard';
   });
-  const [dashboardFilters, setDashboardFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [sessionsFilters, setSessionsFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [reportsFilters, setReportsFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [dashboardFilters, setDashboardFilters] = useState<FilterState>(() => readSharedFilterState());
+  const [sessionsFilters, setSessionsFilters] = useState<FilterState>(() => readSharedFilterState());
+  const [reportsFilters, setReportsFilters] = useState<FilterState>(() => readSharedFilterState());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Modals
@@ -170,11 +194,15 @@ export default function App() {
 
   const buildStats = (sessions: MeetingSession[], filtersForScope: FilterState) => {
     const active = hasFilters(filtersForScope);
-    const activeRepresentativeIds = new Set(sessions.flatMap((session) => session.attendees.map((attendee) => attendee.representativeId)));
     const repStats = computeRepresentativeStats(sessions, db.representatives, db.trustees).filter((stat) => !active || stat.sessionCount > 0);
     const trusteeStats = computeTrusteeStats(sessions, db.trustees, db.representatives)
       .filter((stat) => !active || stat.sessionCount > 0)
-      .map((stat) => active ? { ...stat, representatives: stat.representatives.filter((rep) => activeRepresentativeIds.has(rep.id)) } : stat);
+      .map((stat) => active ? {
+        ...stat,
+        representatives: stat.representatives.filter((rep) => sessions.some((session) =>
+          session.attendees.some((attendee) => attendee.representativeId === rep.id && getEffectiveTrusteeId(rep, session.committeeId) === stat.trustee.id)
+        )),
+      } : stat);
     const committeeStats = computeCommitteeStats(sessions, db.committees ?? COMMITTEES).filter((stat) => !active || stat.sessionCount > 0);
     return { repStats, trusteeStats, committeeStats };
   };
@@ -190,12 +218,12 @@ export default function App() {
   };
 
   const shareData = shareScope === 'sessions'
-    ? { sessions: sessionList, stats: sessionStats, filterText: summarizeFilters(sessionsFilters), title: 'ثبت و فهرست جلسات' }
+    ? { sessions: sessionList, stats: sessionStats, filters: sessionsFilters, filterText: summarizeFilters(sessionsFilters), title: 'ثبت و فهرست جلسات' }
     : shareScope === 'reports'
-      ? { sessions: reportSessions, stats: reportStats, filterText: summarizeFilters(reportsFilters), title: 'گزارش تفکیکی حضور' }
+      ? { sessions: reportSessions, stats: reportStats, filters: reportsFilters, filterText: summarizeFilters(reportsFilters), title: 'گزارش تفکیکی حضور' }
       : shareScope === 'directory'
-        ? { sessions: db.sessions, stats: buildStats(db.sessions, DEFAULT_FILTERS), filterText: 'بدون فیلتر', title: 'فهرست اعضا و کارگروه‌ها' }
-        : { sessions: dashboardSessions, stats: dashboardStats, filterText: summarizeFilters(dashboardFilters), title: 'داشبورد مدیریتی' };
+        ? { sessions: db.sessions, stats: buildStats(db.sessions, DEFAULT_FILTERS), filters: DEFAULT_FILTERS, filterText: 'بدون فیلتر', title: 'فهرست اعضا و کارگروه‌ها' }
+        : { sessions: dashboardSessions, stats: dashboardStats, filters: dashboardFilters, filterText: summarizeFilters(dashboardFilters), title: 'داشبورد مدیریتی' };
 
   // Session CRUD
   const handleSaveSession = (
@@ -712,6 +740,7 @@ export default function App() {
         initialParts={shareParts}
         scopeTitle={shareData.title}
         filterSummary={shareData.filterText}
+        filterState={shareData.filters}
         shareScope={shareScope}
       />
 
