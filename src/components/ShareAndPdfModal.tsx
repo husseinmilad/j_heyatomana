@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Check,
   Copy,
@@ -9,8 +9,10 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ActiveTab,
   CommitteeStat,
   MeetingSession,
+  FilterState,
   Representative,
   RepresentativeStat,
   Trustee,
@@ -18,6 +20,8 @@ import {
 } from '../types';
 import {
   COMMITTEE_MAP,
+  getAttendanceMinutes,
+  getEffectiveTrusteeId,
   encodeSharePayload,
   formatMinutesToClock,
   formatMinutesToPersian,
@@ -34,6 +38,11 @@ interface ShareAndPdfModalProps {
   trusteeStats: TrusteeStat[];
   committeeStats: CommitteeStat[];
   onExportExcel: () => void;
+  initialParts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>;
+  scopeTitle?: string;
+  filterSummary?: string;
+  filterState?: FilterState;
+  shareScope?: ActiveTab;
 }
 
 export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
@@ -46,59 +55,75 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   trusteeStats,
   committeeStats,
   onExportExcel,
+  initialParts,
+  scopeTitle = 'گزارش جلسات',
+  filterSummary = 'بدون فیلتر',
+  filterState,
+  shareScope = 'dashboard',
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
   const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, committees: true, sessions: true });
+  useEffect(() => { if (isOpen && initialParts) setPrintParts({ summary: false, trustees: false, representatives: false, committees: false, sessions: false, ...initialParts }); }, [isOpen, initialParts]);
 
   if (!isOpen) return null;
 
   const today = getTodayJalali().formatted;
   const totalSessionMins = sessions.reduce((s, x) => s + x.durationMinutes, 0);
   const totalPersonMins = repStats.reduce((s, r) => s + r.totalMinutes, 0);
+  const topRepresentative = [...repStats].sort((a, b) => b.totalMinutes - a.totalMinutes)[0];
+  const mostActiveCommittee = [...committeeStats].sort((a, b) => b.sessionCount - a.sessionCount)[0];
+  const matchingRepresentativeIds = new Set(sessions.flatMap((session) => session.attendees.map((a) => a.representativeId)));
+  const matchingRepresentatives = representatives.filter((rep) => matchingRepresentativeIds.has(rep.id));
+  const matchingTrusteeIds = new Set<string>();
+  sessions.forEach((session) => session.attendees.forEach((att) => { const rep = representatives.find((item) => item.id === att.representativeId); if (rep) { const trusteeId = getEffectiveTrusteeId(rep, session.committeeId); if (trusteeId) matchingTrusteeIds.add(trusteeId); } }));
+  const matchingTrustees = trustees.filter((trustee) => matchingTrusteeIds.has(trustee.id));
 
   const buildSelectedShareText = () => {
-    const lines: string[] = [`گزارش جلسات کارگروه‌ها · ${toPersianDigits(today)}`];
-    if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
-    if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
-    if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalMinutes)}`));
-    if (printParts.committees) lines.push('آمار کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
+    const lines: string[] = [`گزارش ${scopeTitle} · سازمان تأمین اجتماعی و صندوق‌های تابعه · ${toPersianDigits(today)}`, `دامنه نتایج: ${filterSummary}`, `تعداد نتایج منطبق: ${toPersianDigits(sessions.length)} جلسه`];
+    if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`, `فعال‌ترین نماینده: ${topRepresentative?.representative.fullName ?? '—'}`, `پرفعالیت‌ترین نوع جلسه: ${mostActiveCommittee?.committee.name ?? '—'}`);
+    if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`), 'جزئیات نمایندگان هر عضو:', ...trusteeStats.flatMap((st) => repStats.filter((r) => r.representative.trusteeId === st.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(st.trustee.id)).map((r) => { const attended = sessions.filter((s) => s.attendees.some((a) => a.representativeId === r.representative.id && (r.representative.committeeTrusteeOverrides?.[s.committeeId] ?? r.representative.trusteeId) === st.trustee.id)); const mins = attended.reduce((sum, s) => sum + getAttendanceMinutes(s, s.attendees.find((a) => a.representativeId === r.representative.id)!), 0); if (!attended.length) return ''; return `${st.trustee.fullName} ← ${r.representative.fullName}: ${toPersianDigits(attended.length)} جلسه · ${toPersianDigits(new Set(attended.map((s) => s.jalaliDate)).size)} روز · ${formatMinutesToPersian(mins)}`; })));
+    if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
+    if (printParts.committees) lines.push('آمار انواع جلسات و کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
     if (printParts.sessions) lines.push('فهرست جلسات:', ...sessions.map((session) => `${toPersianDigits(session.jalaliDate)} · ${COMMITTEE_MAP[session.committeeId]?.name ?? ''} · ${session.topic}`));
     return lines.join('\n');
   };
 
   const buildShareUrl = () => {
-    const needsSessions = printParts.summary || printParts.committees || printParts.sessions;
-    const needsPeople = printParts.trustees || printParts.representatives;
     const encoded = encodeSharePayload({
-      trustees: needsPeople ? trustees : [],
-      representatives: needsPeople ? representatives : [],
-      sessions: needsSessions ? sessions : [],
+      trustees: matchingTrustees,
+      representatives: matchingRepresentatives,
+      // Always include the filtered records needed to render the shared page. Attachments are excluded from URL shares.
+      sessions: sessions.map(({ attachmentData, ...session }) => ({ ...session, attachmentName: session.attachmentName || (attachmentData ? 'پیوست' : undefined) })),
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
+    url.searchParams.set('view', shareScope);
+    url.searchParams.set('criteria', filterSummary);
+    const filterBytes = new TextEncoder().encode(JSON.stringify(filterState ?? {}));
+    let filterBinary = '';
+    for (let i = 0; i < filterBytes.length; i += 1) filterBinary += String.fromCharCode(filterBytes[i]);
+    url.searchParams.set('filters', btoa(filterBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+    url.searchParams.set('parts', Object.entries(printParts).filter(([, enabled]) => enabled).map(([key]) => key).join(','));
     return url.toString();
   };
 
+  const copyText = async (value: string) => {
+    try { if (window.desktopShare) { window.desktopShare(value); return true; } } catch { /* fallback */ }
+    try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(value); return true; } } catch { /* fallback */ }
+    try { const area = document.createElement('textarea'); area.value = value; area.setAttribute('readonly', ''); area.style.position = 'fixed'; area.style.opacity = '0'; document.body.appendChild(area); area.select(); const ok = document.execCommand('copy'); area.remove(); return ok; } catch { return false; }
+  };
+
   const handleCopyText = async () => {
-    const text = buildSelectedShareText();
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedType('text');
-      setTimeout(() => setCopiedType(null), 2500);
-    } catch {
-      // Fallback ignored in restricted frames
-    }
+    const ok = await copyText(buildSelectedShareText());
+    setCopiedType(ok ? 'text' : null);
+    if (ok) setTimeout(() => setCopiedType(null), 2500);
   };
 
   const handleCopyLink = async () => {
     const shareUrl = buildShareUrl();
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopiedType('link');
-      setTimeout(() => setCopiedType(null), 2500);
-    } catch {
-      // Fallback ignored
-    }
+    const ok = await copyText(shareUrl);
+    setCopiedType(ok ? 'link' : null);
+    if (ok) setTimeout(() => setCopiedType(null), 2500);
   };
 
   const handleNativeShare = async () => {
@@ -118,9 +143,13 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     }
   };
 
-  const handlePrintPdf = () => {
-    if (window.desktopPrint) window.desktopPrint();
-    else window.print();
+  const handlePrintPdf = async () => {
+    if (window.desktopPrintPreview) {
+      const report = document.querySelector('.print-only-container');
+      const css = Array.from(document.styleSheets).map((sheet) => { try { return Array.from(sheet.cssRules).map((rule) => rule.cssText).join('\\n'); } catch { return ''; } }).join('\\n');
+      const html = `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش جلسات هیئت امنا</title><style>${css} @page{size:A4;margin:10mm} body{font-family:Vazirmatn,Tahoma,Arial,sans-serif;background:#fff;color:#0f172a;font-size:8.5pt;line-height:1.4} .print-only-container{display:block!important;max-height:none!important;overflow:visible!important;font-size:8.5pt!important;line-height:1.4!important;padding:0!important} .print-only-container h1{font-size:13pt!important;line-height:1.35!important} .print-only-container h3{font-size:9.5pt!important;margin-bottom:5px!important} .print-only-container p,.print-only-container span,.print-only-container td,.print-only-container th{font-size:7.5pt!important;line-height:1.35!important} .print-only-container table{font-size:7.5pt!important;width:100%!important} .print-only-container th,.print-only-container td{padding:3px 4px!important} .print-only-container .text-lg{font-size:10pt!important} .print-only-container .text-xl{font-size:12pt!important}</style></head><body>${report?.outerHTML ?? '<p>گزارشی برای چاپ وجود ندارد.</p>'}</body></html>`;
+      await window.desktopPrintPreview(html);
+    } else { window.print(); }
   };
 
   return (
@@ -143,6 +172,14 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
             <p className="text-xs text-slate-500 mt-0.5">
               نسخه رسمی قابل چاپ با فونت وزیر، اشتراک‌گذاری متنی یا لینک گزارش
             </p>
+          </div>
+          <div className="no-print mx-6 mt-3 rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2 text-xs text-teal-900">
+            <div className="font-semibold">خروجی اختصاصی: {scopeTitle}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-teal-800">
+              <span>{toPersianDigits(sessions.length)} جلسه منطبق با فیلترها</span>
+              <span>شرایط: {filterSummary}</span>
+            </div>
+            <p className="mt-1 text-[10px] text-teal-700">متن، فایل PDF، اکسل و لینک اشتراک فقط بر اساس نتایج همین صفحه تهیه می‌شوند.</p>
           </div>
           <div className="no-print flex flex-wrap gap-3 px-6 py-3 border-b border-slate-200 text-xs text-slate-700"><span className="font-semibold">بخش‌های خروجی:</span><label><input type="checkbox" checked={printParts.summary} onChange={(e) => setPrintParts((p) => ({ ...p, summary: e.target.checked }))} /> خلاصه</label><label><input type="checkbox" checked={printParts.trustees} onChange={(e) => setPrintParts((p) => ({ ...p, trustees: e.target.checked }))} /> اعضای هیئت‌امنا</label><label><input type="checkbox" checked={printParts.representatives} onChange={(e) => setPrintParts((p) => ({ ...p, representatives: e.target.checked }))} /> نمایندگان</label><label><input type="checkbox" checked={printParts.committees} onChange={(e) => setPrintParts((p) => ({ ...p, committees: e.target.checked }))} /> کارگروه‌ها</label><label><input type="checkbox" checked={printParts.sessions} onChange={(e) => setPrintParts((p) => ({ ...p, sessions: e.target.checked }))} /> فهرست جلسات</label></div>
           <div className="flex flex-wrap items-center gap-2">
@@ -216,11 +253,10 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b-2 border-slate-900">
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">
-                گزارش مدیریتی جلسات کارگروه‌های تخصصی و حضور نمایندگان هیئت‌امنا
+                گزارش {scopeTitle} · هیئت‌امنای سازمان تأمین اجتماعی و صندوق‌های تابعه
               </h1>
-              <p className="text-xs text-slate-600 mt-1">
-                حسابرسی و بودجه · اقتصاد و سرمایه‌گذاری · بیمه و محاسبات اکچوئری · بهداشت و درمان
-              </p>
+              <p className="text-xs text-slate-600 mt-1">فقط نتایج منطبق با جستجوها و فیلترهای فعال</p>
+              <p className="mt-1 text-[10px] leading-5 text-slate-500">فیلترهای اعمال‌شده: {filterSummary}</p>
             </div>
             <div className="text-left text-xs text-slate-600 tabular-nums">
               <p>
@@ -239,30 +275,15 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Summary Totals */}
-          <div className={printParts.summary ? "grid grid-cols-3 gap-4" : "hidden"}>
-            <div className="rounded-lg border border-slate-200 p-3.5">
-              <span className="text-[11px] text-slate-500 block">
-                تعداد جلسات گزارش
-              </span>
-              <span className="text-lg font-bold text-slate-900 tabular-nums">
-                {toPersianDigits(sessions.length)} جلسه
-              </span>
+          <div className={printParts.summary ? "space-y-3" : "hidden"}>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg border border-slate-200 p-3"><span className="block text-[10px] text-slate-500">تعداد جلسات منطبق</span><strong className="mt-1 block text-base text-slate-900 tabular-nums">{toPersianDigits(sessions.length)} جلسه</strong></div>
+              <div className="rounded-lg border border-slate-200 p-3"><span className="block text-[10px] text-slate-500">مجموع زمان برگزاری</span><strong className="mt-1 block text-base text-slate-900 tabular-nums">{formatMinutesToPersian(totalSessionMins)}</strong></div>
+              <div className="rounded-lg border border-slate-200 p-3"><span className="block text-[10px] text-slate-500">مجموع نفرساعت حضور</span><strong className="mt-1 block text-base text-teal-800 tabular-nums">{formatMinutesToPersian(totalPersonMins)}</strong></div>
             </div>
-            <div className="rounded-lg border border-slate-200 p-3.5">
-              <span className="text-[11px] text-slate-500 block">
-                مجموع ساعات برگزاری
-              </span>
-              <span className="text-lg font-bold text-slate-900 tabular-nums">
-                {formatMinutesToPersian(totalSessionMins)}
-              </span>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-3.5">
-              <span className="text-[11px] text-slate-500 block">
-                مجموع نفر-ساعت حضور
-              </span>
-              <span className="text-lg font-bold text-teal-800 tabular-nums">
-                {formatMinutesToPersian(totalPersonMins)}
-              </span>
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700 grid grid-cols-2 gap-2">
+              <p>فعال‌ترین نماینده: <strong>{topRepresentative?.representative.fullName ?? '—'}</strong></p>
+              <p>پرفعالیت‌ترین نوع جلسه: <strong>{mostActiveCommittee?.committee.name ?? '—'}</strong></p>
             </div>
           </div>
 
@@ -279,9 +300,9 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
                   </th>
-                  <th className="border border-slate-200 py-2 px-3 text-left">
-                    میزان ساعت حضور
-                  </th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">روزهای حضور</th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">میزان ساعت حضور</th>
+                  <th className="border border-slate-200 py-2 px-3">عناوین جلسات</th>
                 </tr>
               </thead>
               <tbody>
@@ -296,13 +317,20 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                     <td className="border border-slate-200 py-2 px-3 text-left tabular-nums">
                       {toPersianDigits(st.sessionCount)}
                     </td>
+                    <td className="border border-slate-200 py-2 px-3 text-left">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="border border-slate-200 py-2 px-3 text-left tabular-nums font-semibold">
                       {formatMinutesToPersian(st.totalMinutes)} (
                       {formatMinutesToClock(st.totalMinutes)})
                     </td>
+                    <td className="border border-slate-200 py-2 px-3">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                   </tr>
                 ))}
               </tbody>
+            </table>
+            <h4 className="text-xs font-bold text-slate-800 mt-3 mb-1">جزئیات تعداد جلسات و ساعات حضور نمایندگان هر عضو</h4>
+            <table className="w-full text-right border-collapse border border-slate-200 text-[10px]">
+              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-1 px-2">عضو هیئت‌امنا</th><th className="border border-slate-200 py-1 px-2">نماینده</th><th className="border border-slate-200 py-1 px-2">جلسات</th><th className="border border-slate-200 py-1 px-2">روز حضور</th><th className="border border-slate-200 py-1 px-2">مدت حضور</th></tr></thead>
+              <tbody>{trusteeStats.flatMap((st) => repStats.filter((r) => r.representative.trusteeId === st.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(st.trustee.id)).map((r) => { const attended = sessions.filter((s) => s.attendees.some((a) => a.representativeId === r.representative.id && (r.representative.committeeTrusteeOverrides?.[s.committeeId] ?? r.representative.trusteeId) === st.trustee.id)); const mins = attended.reduce((sum, s) => sum + getAttendanceMinutes(s, s.attendees.find((a) => a.representativeId === r.representative.id)!), 0); if (!attended.length) return null; return <tr key={st.trustee.id + ':' + r.representative.id}><td className="border border-slate-200 py-1 px-2">{st.trustee.fullName}</td><td className="border border-slate-200 py-1 px-2">{r.representative.fullName}</td><td className="border border-slate-200 py-1 px-2">{toPersianDigits(attended.length)}</td><td className="border border-slate-200 py-1 px-2">{toPersianDigits(new Set(attended.map((s) => s.jalaliDate)).size)}</td><td className="border border-slate-200 py-1 px-2">{formatMinutesToPersian(mins)}</td></tr>; }))}</tbody>
             </table>
           </div>
 
@@ -321,9 +349,9 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                   <th className="border border-slate-200 py-2 px-3 text-left">
                     تعداد جلسات
                   </th>
-                  <th className="border border-slate-200 py-2 px-3 text-left">
-                    میزان ساعت حضور
-                  </th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">روزهای حضور</th>
+                  <th className="border border-slate-200 py-2 px-3 text-left">میزان ساعت حضور</th>
+                  <th className="border border-slate-200 py-2 px-3">عناوین جلسات</th>
                 </tr>
               </thead>
               <tbody>
@@ -340,9 +368,9 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
                     <td className="border border-slate-200 py-2 px-3 text-left tabular-nums">
                       {toPersianDigits(st.sessionCount)}
                     </td>
-                    <td className="border border-slate-200 py-2 px-3 text-left tabular-nums font-semibold">
-                      {formatMinutesToPersian(st.totalMinutes)}
-                    </td>
+                    <td className="border border-slate-200 py-2 px-3 text-left">{toPersianDigits(st.attendanceDays)} روز</td>
+                    <td className="border border-slate-200 py-2 px-3 text-left tabular-nums font-semibold">{formatMinutesToPersian(st.totalMinutes)}</td>
+                    <td className="border border-slate-200 py-2 px-3">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -352,7 +380,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className={printParts.committees ? "" : "hidden"}>
             <h3 className="text-sm font-bold text-slate-900 mb-2">۳. آمار به تفکیک کارگروه‌ها</h3>
             <table className="w-full text-right border-collapse border border-slate-200 text-xs">
-              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-2 px-3">کارگروه</th><th className="border border-slate-200 py-2 px-3">تعداد جلسات</th><th className="border border-slate-200 py-2 px-3">مجموع زمان جلسات</th><th className="border border-slate-200 py-2 px-3">نفر-ساعت حضور</th></tr></thead>
+              <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-2 px-3">نوع جلسه / کارگروه</th><th className="border border-slate-200 py-2 px-3">تعداد جلسات</th><th className="border border-slate-200 py-2 px-3">مجموع زمان جلسات</th><th className="border border-slate-200 py-2 px-3">نفر-ساعت حضور</th></tr></thead>
               <tbody>{committeeStats.map((st) => <tr key={st.committee.id}><td className="border border-slate-200 py-2 px-3">{st.committee.name}</td><td className="border border-slate-200 py-2 px-3">{toPersianDigits(st.sessionCount)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalSessionMinutes)}</td><td className="border border-slate-200 py-2 px-3">{formatMinutesToPersian(st.totalPersonMinutes)}</td></tr>)}</tbody>
             </table>
           </div>

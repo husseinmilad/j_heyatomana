@@ -229,71 +229,145 @@ export function getAttendanceMinutes(
   return session.durationMinutes;
 }
 
+export function normalizeSearchValue(value: string): string {
+  return toEnglishDigits(String(value ?? ''))
+    .normalize('NFKC')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[ـ\u064B-\u065F]/g, '')
+    .replace(/[\u200c\u200f]/g, ' ')
+    .replace(/[‌ـ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('fa');
+}
+
+type SearchableField = 'all' | 'topic' | 'summary' | 'people' | 'committee' | 'letter' | 'attachment' | 'date' | 'time';
+
+function parseSearchTokens(raw: string) {
+  const aliases: Record<string, SearchableField> = {
+    'موضوع': 'topic', 'topic': 'topic',
+    'گزارش': 'summary', 'summary': 'summary',
+    'نماینده': 'people', 'افراد': 'people', 'people': 'people',
+    'عضو': 'people', 'هیئت‌امنا': 'people', 'هیئت امنا': 'people', 'trustee': 'people',
+    'کارگروه': 'committee', 'کمیته': 'committee', 'نشست': 'committee', 'committee': 'committee',
+    'نامه': 'letter', 'شماره': 'letter', 'letter': 'letter',
+    'پیوست': 'attachment', 'attachment': 'attachment',
+    'تاریخ': 'date', 'date': 'date',
+    'ساعت': 'time', 'مدت': 'time', 'time': 'time',
+  };
+  const tokens: Array<{ value: string; field: SearchableField | null; exclude: boolean }> = [];
+  const matcher = /(-)?(?:([^\s:]+):)?(?:"([^"]+)"|'([^']+)'|(\S+))/g;
+  for (const match of raw.matchAll(matcher)) {
+    const exclude = match[1] === '-';
+    const alias = match[2] ? normalizeSearchValue(match[2]) : '';
+    let value = (match[3] ?? match[4] ?? match[5] ?? '').trim();
+    if (!value || value.toUpperCase() === 'OR' || value === 'یا' || value === '|') continue;
+    const field = aliases[alias] ?? null;
+    value = normalizeSearchValue(value);
+    if (value) tokens.push({ value, field, exclude });
+  }
+  return tokens;
+}
+
 export function filterSessions(
   sessions: MeetingSession[],
   filters: FilterState,
-  representatives: Representative[]
+  representatives: Representative[],
+  trustees: Trustee[] = []
 ): MeetingSession[] {
   const repMap = new Map(representatives.map((r) => [r.id, r]));
-  const query = toEnglishDigits(filters.searchQuery.trim()).toLowerCase();
+  const trusteeMap = new Map(trustees.map((t) => [t.id, t]));
+  const normalized = { searchMode: 'all' as const, searchField: 'all' as const, ...filters };
+  const query = normalizeSearchValue(normalized.searchQuery ?? '');
+  const tokens = parseSearchTokens(normalized.searchQuery ?? '');
+  const positiveTokens = tokens.filter((token) => !token.exclude);
+  const negativeTokens = tokens.filter((token) => token.exclude);
 
-  return sessions
-    .filter((session) => {
-      if (
-        filters.committeeId !== 'all' &&
-        session.committeeId !== filters.committeeId
-      ) {
-        return false;
+  const numericRangeMatches = (value: number, minText?: string, maxText?: string) => {
+    const minRaw = (minText ?? '').trim();
+    const maxRaw = (maxText ?? '').trim();
+    if (!minRaw && !maxRaw) return true;
+    const min = minRaw ? Number(toEnglishDigits(minRaw)) : undefined;
+    const max = maxRaw ? Number(toEnglishDigits(maxRaw)) : undefined;
+    if ((min !== undefined && (!Number.isFinite(min) || min < 0)) ||
+        (max !== undefined && (!Number.isFinite(max) || max < 0)) ||
+        (min !== undefined && max !== undefined && min > max)) return false;
+    return (min === undefined || value >= min) && (max === undefined || value <= max);
+  };
+
+  return sessions.filter((session) => {
+    const committee = COMMITTEE_MAP[session.committeeId];
+    if (normalized.committeeId !== 'all' && session.committeeId !== normalized.committeeId) return false;
+    if (normalized.committeeCategory && normalized.committeeCategory !== 'all' && (committee?.category ?? 'کارگروه') !== normalized.committeeCategory) return false;
+    if (normalized.dateFrom && (!isValidJalaliDate(normalized.dateFrom) || compareJalaliDates(session.jalaliDate, normalized.dateFrom) < 0)) return false;
+    if (normalized.dateTo && (!isValidJalaliDate(normalized.dateTo) || compareJalaliDates(session.jalaliDate, normalized.dateTo) > 0)) return false;
+    if (normalized.dateFrom && normalized.dateTo && isValidJalaliDate(normalized.dateFrom) && isValidJalaliDate(normalized.dateTo) && compareJalaliDates(normalized.dateFrom, normalized.dateTo) > 0) return false;
+    if (normalized.representativeId !== 'all' && !session.attendees.some((a) => a.representativeId === normalized.representativeId)) return false;
+    if (normalized.trusteeId !== 'all' && !session.attendees.some((a) => {
+      const rep = repMap.get(a.representativeId);
+      return !!rep && getEffectiveTrusteeId(rep, session.committeeId) === normalized.trusteeId;
+    })) return false;
+
+    const start = parseTimeToMinutes(session.startTime);
+    const from = normalized.startTimeFrom ? parseTimeToMinutes(normalized.startTimeFrom) : null;
+    const to = normalized.startTimeTo ? parseTimeToMinutes(normalized.startTimeTo) : null;
+    if (normalized.startTimeFrom && from === null) return false;
+    if (normalized.startTimeTo && to === null) return false;
+    if (from !== null && (start === null || start < from)) return false;
+    if (to !== null && (start === null || start > to)) return false;
+    if (from !== null && to !== null && from > to) return false;
+    if (!numericRangeMatches(session.durationMinutes, normalized.minDuration, normalized.maxDuration)) return false;
+    if (!numericRangeMatches(session.attendees.length, normalized.minAttendees, normalized.maxAttendees)) return false;
+
+    const hasAttachment = Boolean(session.attachmentData || session.attachmentName);
+    if (normalized.attachmentStatus === 'with' && !hasAttachment) return false;
+    if (normalized.attachmentStatus === 'without' && hasAttachment) return false;
+
+    if (query) {
+      const repNames: string[] = [];
+      const repRoles: string[] = [];
+      const trusteeNames: string[] = [];
+      for (const attendee of session.attendees) {
+        const rep = repMap.get(attendee.representativeId);
+        if (!rep) continue;
+        repNames.push(rep.fullName);
+        if (rep.roleTitle) repRoles.push(rep.roleTitle);
+        const trusteeId = getEffectiveTrusteeId(rep, session.committeeId);
+        const trusteeName = trusteeMap.get(trusteeId)?.fullName;
+        if (trusteeName) trusteeNames.push(trusteeName);
       }
-
-      if (filters.dateFrom && isValidJalaliDate(filters.dateFrom)) {
-        if (compareJalaliDates(session.jalaliDate, filters.dateFrom) < 0) {
-          return false;
-        }
+      const valuesByField: Record<SearchableField, string> = {
+        all: [session.topic, session.reportSummary, committee?.name ?? '', committee?.description ?? '', committee?.category ?? '', session.jalaliDate, session.startTime, session.endTime, String(session.durationMinutes), session.letterNumber ?? '', session.attachmentName ?? '', ...repNames, ...repRoles, ...trusteeNames].join(' '),
+        topic: session.topic,
+        summary: session.reportSummary,
+        people: [...repNames, ...repRoles, ...trusteeNames].join(' '),
+        committee: [committee?.name ?? '', committee?.description ?? '', committee?.category ?? ''].join(' '),
+        letter: session.letterNumber ?? '',
+        attachment: session.attachmentName ?? '',
+        date: session.jalaliDate,
+        time: [session.startTime, session.endTime, String(session.durationMinutes)].join(' '),
+      };
+      const selectedField = normalized.searchField ?? 'all';
+      const valueFor = (field: SearchableField | null) => normalizeSearchValue(valuesByField[field ?? selectedField] ?? valuesByField.all);
+      const useAny = normalized.searchMode === 'any' || /\s(?:OR|یا|\|)\s/i.test(normalized.searchQuery ?? '');
+      const positivesMatch = positiveTokens.length === 0 || (useAny
+        ? positiveTokens.some((token) => valueFor(token.field).includes(token.value))
+        : positiveTokens.every((token) => valueFor(token.field).includes(token.value)));
+      if (!positivesMatch) return false;
+      if (negativeTokens.some((token) => valueFor(token.field).includes(token.value))) return false;
+      // A negative-only query is a valid exclusion search; it has no positive phrase to require.
+      if (normalized.searchMode === 'exact' && positiveTokens.length > 0 && positiveTokens.every((token) => token.field === null)) {
+        const exactValue = positiveTokens.map((token) => token.value).join(' ');
+        if (!valueFor(null).includes(exactValue)) return false;
       }
-
-      if (filters.dateTo && isValidJalaliDate(filters.dateTo)) {
-        if (compareJalaliDates(session.jalaliDate, filters.dateTo) > 0) {
-          return false;
-        }
-      }
-
-      if (filters.representativeId !== 'all') {
-        const hasRep = session.attendees.some(
-          (a) => a.representativeId === filters.representativeId
-        );
-        if (!hasRep) return false;
-      }
-
-      if (filters.trusteeId !== 'all') {
-        const hasTrusteeRep = session.attendees.some((a) => {
-          const rep = repMap.get(a.representativeId);
-          if (!rep) return false;
-          return (
-            getEffectiveTrusteeId(rep, session.committeeId) === filters.trusteeId
-          );
-        });
-        if (!hasTrusteeRep) return false;
-      }
-
-      if (query) {
-        const committeeName = COMMITTEE_MAP[session.committeeId]?.name ?? '';
-        const attendeeNames = session.attendees
-          .map((a) => repMap.get(a.representativeId)?.fullName ?? '')
-          .join(' ');
-        const haystack = toEnglishDigits(
-          `${session.topic} ${session.reportSummary} ${committeeName} ${session.jalaliDate} ${attendeeNames}`
-        ).toLowerCase();
-        if (!haystack.includes(query)) return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      const dateDiff = compareJalaliDates(b.jalaliDate, a.jalaliDate);
-      if (dateDiff !== 0) return dateDiff;
-      return b.startTime.localeCompare(a.startTime);
-    });
+    }
+    return true;
+  }).sort((a, b) => {
+    const dateDiff = compareJalaliDates(b.jalaliDate, a.jalaliDate);
+    if (dateDiff !== 0) return dateDiff;
+    return b.startTime.localeCompare(a.startTime);
+  });
 }
 
 function createEmptyCommitteeBreakdown(): Record<
@@ -318,6 +392,8 @@ export function computeRepresentativeStats(
       committeeNames: rep.committeeIds.map((id) => COMMITTEE_MAP[id]?.name ?? id),
       sessionCount: 0,
       totalMinutes: 0,
+      attendanceDays: 0,
+      attendedSessionTitles: [],
       committeeBreakdown: createEmptyCommitteeBreakdown(),
     });
   }
@@ -334,11 +410,18 @@ export function computeRepresentativeStats(
       const mins = getAttendanceMinutes(session, att);
       stat.sessionCount += 1;
       stat.totalMinutes += mins;
+      stat.attendedSessionTitles.push(`${session.jalaliDate} · ${COMMITTEE_MAP[session.committeeId]?.name ?? session.committeeId} · ${session.topic}`);
       if (stat.committeeBreakdown[session.committeeId]) {
         stat.committeeBreakdown[session.committeeId].sessions += 1;
         stat.committeeBreakdown[session.committeeId].minutes += mins;
       }
     }
+  }
+
+  for (const stat of statsMap.values()) {
+    const dates = new Set<string>();
+    for (const session of sessions) if (session.attendees.some((att) => att.representativeId === stat.representative.id)) dates.add(session.jalaliDate);
+    stat.attendanceDays = dates.size;
   }
 
   return Array.from(statsMap.values()).sort((a, b) => {
@@ -367,6 +450,8 @@ export function computeTrusteeStats(
       sessionCount: 0,
       totalAttendances: 0,
       totalMinutes: 0,
+      attendanceDays: 0,
+      attendedSessionTitles: [],
       committeeBreakdown: createEmptyCommitteeBreakdown(),
     });
   }
@@ -388,6 +473,8 @@ export function computeTrusteeStats(
       const mins = getAttendanceMinutes(session, att);
       tStat.totalAttendances += 1;
       tStat.totalMinutes += mins;
+      const title = `${session.jalaliDate} · ${COMMITTEE_MAP[session.committeeId]?.name ?? session.committeeId} · ${session.topic}`;
+      if (!tStat.attendedSessionTitles.includes(title)) tStat.attendedSessionTitles.push(title);
 
       if (tStat.committeeBreakdown[session.committeeId]) {
         tStat.committeeBreakdown[session.committeeId].minutes += mins;
@@ -403,6 +490,17 @@ export function computeTrusteeStats(
       const tStat = statsMap.get(tid);
       if (tStat) tStat.sessionCount += 1;
     }
+  }
+
+  for (const stat of statsMap.values()) {
+    const dates = new Set<string>();
+    for (const session of sessions) {
+      if (session.attendees.some((att) => {
+        const rep = repMap.get(att.representativeId);
+        return !!rep && getEffectiveTrusteeId(rep, session.committeeId) === stat.trustee.id;
+      })) dates.add(session.jalaliDate);
+    }
+    stat.attendanceDays = dates.size;
   }
 
   return Array.from(statsMap.values()).sort((a, b) => {
@@ -492,7 +590,7 @@ export function serializeBackup(state: AppDatabaseState): string {
   const payload: AppDatabaseBackup = {
     schemaVersion: BACKUP_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    appName: 'سامانه مدیریت جلسات کارگروه‌ها',
+    appName: 'مدیریت جلسات هیئت امنای سازمان تامین اجتماعی و صندوق های تابعه',
     committees: COMMITTEES,
     trustees: state.trustees,
     representatives: state.representatives,

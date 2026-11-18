@@ -10,6 +10,8 @@ import {
 } from '../types';
 import {
   COMMITTEES,
+  getAttendanceMinutes,
+  getEffectiveTrusteeId,
   formatMinutesToClock,
   formatMinutesToPersian,
 } from '../utils/analytics';
@@ -17,6 +19,8 @@ import { toPersianDigits } from '../utils/jalali';
 import { FilterBar } from './FilterBar';
 
 interface ReportsViewProps {
+  sessions: import('../types').MeetingSession[];
+  totalSessionsCount: number;
   repStats: RepresentativeStat[];
   trusteeStats: TrusteeStat[];
   committeeStats: CommitteeStat[];
@@ -25,12 +29,14 @@ interface ReportsViewProps {
   filters: FilterState;
   onFiltersChange: (next: FilterState) => void;
   onExportExcel: () => void;
-  onOpenSharePdf: () => void;
+  onOpenSharePdf: (parts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>) => void;
 }
 
 type ReportSubTab = 'by-representative' | 'by-trustee' | 'by-committee';
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
+  sessions,
+  totalSessionsCount,
   repStats,
   trusteeStats,
   committeeStats,
@@ -50,7 +56,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         onChange={onFiltersChange}
         trustees={trustees}
         representatives={representatives}
+        scopeLabel="گزارش حضور"
+        resultCount={sessions.length}
+        totalCount={totalSessionsCount}
       />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">جلسات در بازهٔ فیلترشده</div><div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">{toPersianDigits(sessions.length)}</div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">مجموع زمان برگزاری</div><div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">{formatMinutesToClock(sessions.reduce((sum, item) => sum + item.durationMinutes, 0))} <span className="text-xs font-normal">ساعت</span></div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">نفر ـ ساعت حضور</div><div className="mt-1 text-xl font-bold text-teal-800 tabular-nums">{formatMinutesToClock(repStats.reduce((sum, item) => sum + item.totalMinutes, 0))} <span className="text-xs font-normal">ساعت</span></div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">افراد دارای حضور ثبت‌شده</div><div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">{toPersianDigits(repStats.filter(item => item.sessionCount > 0).length)}</div></div>
+      </div>
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-b border-slate-200">
@@ -112,7 +128,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </button>
             <button
               type="button"
-              onClick={onOpenSharePdf}
+              onClick={() => onOpenSharePdf(subTab === 'by-representative' ? { representatives: true } : subTab === 'by-trustee' ? { trustees: true } : { committees: true })}
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 transition-colors whitespace-nowrap"
             >
               <Printer className="w-4 h-4" />
@@ -122,7 +138,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
-        {/* Tab 1: By Representative */}
+        {sessions.length === 0 && (
+        <div role="status" aria-live="polite" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 text-center">
+          <p className="text-sm font-semibold text-amber-900">برای معیارهای جستجو و فیلتر فعلی نتیجه‌ای پیدا نشد.</p>
+          <p className="mt-1 text-xs text-amber-800">فیلترها را تغییر دهید یا پاک کنید تا گزارش‌های حضور دوباره نمایش داده شوند.</p>
+        </div>
+      )}
+
+      {/* Tab 1: By Representative */}
         {subTab === 'by-representative' && (
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
@@ -132,7 +155,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <th className="py-3 px-4">نماینده عضو هیئت‌امنا</th>
                   <th className="py-3 px-4">کارگروه‌های عضویت</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
+                  <th className="py-3 px-4 text-left">روزهای حضور</th>
                   <th className="py-3 px-4 text-left">میزان ساعت حضور</th>
+                  <th className="py-3 px-4">عناوین جلسات</th>
                   {COMMITTEES.map((c) => (
                     <th key={c.id} className="py-3 px-3 text-left whitespace-nowrap">
                       {c.name}
@@ -167,6 +192,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <td className="py-3.5 px-4 text-left tabular-nums font-medium text-slate-900">
                       {toPersianDigits(st.sessionCount)}
                     </td>
+                    <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="py-3.5 px-4 text-left tabular-nums">
                       <span className="font-bold text-teal-800 block">
                         {formatMinutesToClock(st.totalMinutes)} ساعت
@@ -175,6 +201,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         {formatMinutesToPersian(st.totalMinutes)}
                       </span>
                     </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                     {COMMITTEES.map((c) => {
                       const b = st.committeeBreakdown[c.id];
                       return (
@@ -214,7 +241,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <th className="py-3 px-4">نمایندگان منصوب</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">دفعات حضور نمایندگان</th>
+                  <th className="py-3 px-4 text-left">روزهای حضور</th>
                   <th className="py-3 px-4 text-left">مجموع ساعت حضور</th>
+                  <th className="py-3 px-4">عناوین جلسات</th>
                   {COMMITTEES.map((c) => (
                     <th key={c.id} className="py-3 px-3 text-left whitespace-nowrap">
                       {c.name}
@@ -249,6 +278,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                     <td className="py-3.5 px-4 text-left tabular-nums text-slate-700">
                       {toPersianDigits(st.totalAttendances)}
                     </td>
+                    <td className="py-3.5 px-4 text-left tabular-nums">{toPersianDigits(st.attendanceDays)} روز</td>
                     <td className="py-3.5 px-4 text-left tabular-nums">
                       <span className="font-bold text-teal-800 block">
                         {formatMinutesToClock(st.totalMinutes)} ساعت
@@ -257,6 +287,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         {formatMinutesToPersian(st.totalMinutes)}
                       </span>
                     </td>
+                    <td className="py-3.5 px-4 text-xs text-slate-600 min-w-64">{st.attendedSessionTitles.join('؛ ') || '—'}</td>
                     {COMMITTEES.map((c) => {
                       const b = st.committeeBreakdown[c.id];
                       return (
@@ -286,13 +317,30 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         )}
 
+        {/* Detailed representative breakdown nested under each trustee */}
+        {subTab === 'by-trustee' && (
+          <div className="border-t border-slate-200 p-4 sm:p-5 space-y-3">
+            <div><h3 className="text-sm font-bold text-slate-900">جزئیات عملکرد نمایندگان زیرمجموعهٔ هر عضو هیئت‌امنا</h3><p className="text-xs text-slate-500 mt-1">تعداد جلسه، روز حضور و مدت حضور هر نماینده با لحاظ انتساب او در همان کارگروه محاسبه شده است.</p></div>
+            <div className="overflow-x-auto"><table className="w-full text-right border-collapse text-xs">
+              <thead><tr className="bg-slate-50 text-slate-600 border-y border-slate-200"><th className="px-3 py-2">عضو هیئت‌امنا</th><th className="px-3 py-2">نماینده</th><th className="px-3 py-2 text-left">تعداد جلسات</th><th className="px-3 py-2 text-left">روزهای حضور</th><th className="px-3 py-2 text-left">ساعت حضور</th><th className="px-3 py-2">عناوین جلسات</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">{trusteeStats.flatMap((t) => repStats.filter((r) => r.representative.trusteeId === t.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(t.trustee.id)).map((r) => {
+                const attended = sessions.filter((session) => session.attendees.some((a) => a.representativeId === r.representative.id && getEffectiveTrusteeId(r.representative, session.committeeId) === t.trustee.id));
+                const minutes = attended.reduce((sum, session) => { const attendance = session.attendees.find((a) => a.representativeId === r.representative.id)!; return sum + getAttendanceMinutes(session, attendance); }, 0);
+                const days = new Set(attended.map((session) => session.jalaliDate)).size;
+                if (attended.length === 0) return null;
+                return <tr key={t.trustee.id + ':' + r.representative.id}><td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap">{t.trustee.fullName}</td><td className="px-3 py-2">{r.representative.fullName}</td><td className="px-3 py-2 text-left tabular-nums">{toPersianDigits(attended.length)}</td><td className="px-3 py-2 text-left tabular-nums">{toPersianDigits(days)}</td><td className="px-3 py-2 text-left tabular-nums font-semibold">{formatMinutesToPersian(minutes)}</td><td className="px-3 py-2 text-slate-500 min-w-64">{attended.map((s) => s.jalaliDate + ' · ' + s.topic).join('؛ ') || '—'}</td></tr>;
+              }))}</tbody>
+            </table></div>
+          </div>
+        )}
+
         {/* Tab 3: By Committee */}
         {subTab === 'by-committee' && (
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
-                  <th className="py-3 px-4">نام کارگروه</th>
+                  <th className="py-3 px-4">نوع جلسه / کارگروه</th>
                   <th className="py-3 px-4">حوزه ماموریت</th>
                   <th className="py-3 px-4 text-left">تعداد جلسات</th>
                   <th className="py-3 px-4 text-left">مجموع ساعات جلسات</th>

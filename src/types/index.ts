@@ -5,6 +5,7 @@ export interface Committee {
   name: string;
   description: string;
   accentColor: string;
+  category?: 'کارگروه' | 'کمیته' | 'نشست';
 }
 
 export interface Trustee {
@@ -51,6 +52,16 @@ export interface FilterState {
   representativeId: string | 'all';
   dateFrom: string; // "" or YYYY/MM/DD
   dateTo: string; // "" or YYYY/MM/DD
+  searchMode?: 'all' | 'any' | 'exact';
+  searchField?: 'all' | 'topic' | 'summary' | 'people' | 'committee' | 'letter' | 'attachment' | 'date' | 'time';
+  committeeCategory?: 'all' | 'کارگروه' | 'کمیته' | 'نشست';
+  startTimeFrom?: string;
+  startTimeTo?: string;
+  minDuration?: string;
+  maxDuration?: string;
+  minAttendees?: string;
+  maxAttendees?: string;
+  attachmentStatus?: 'all' | 'with' | 'without';
 }
 
 export interface AppDatabaseState {
@@ -72,6 +83,8 @@ export interface RepresentativeStat {
   committeeNames: string[];
   sessionCount: number;
   totalMinutes: number;
+  attendanceDays: number;
+  attendedSessionTitles: string[];
   committeeBreakdown: Record<CommitteeId, { sessions: number; minutes: number }>;
 }
 
@@ -81,6 +94,8 @@ export interface TrusteeStat {
   sessionCount: number; // Unique sessions where at least one of this trustee's reps attended
   totalAttendances: number; // Sum of rep attendances
   totalMinutes: number; // Sum of attendance minutes across all reps of this trustee
+  attendanceDays: number;
+  attendedSessionTitles: string[];
   committeeBreakdown: Record<CommitteeId, { sessions: number; minutes: number }>;
 }
 

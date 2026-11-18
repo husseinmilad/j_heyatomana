@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import {
   FilterState,
   MeetingSession,
@@ -17,6 +17,7 @@ import { FilterBar } from './FilterBar';
 
 interface SessionsViewProps {
   sessions: MeetingSession[];
+  totalSessionsCount: number;
   trustees: Trustee[];
   representatives: Representative[];
   filters: FilterState;
@@ -24,11 +25,13 @@ interface SessionsViewProps {
   onOpenNewSession: () => void;
   onEditSession: (session: MeetingSession) => void;
   onDeleteSession: (sessionId: string) => void;
+  onOpenSharePdf?: () => void;
   isReadOnlyShared?: boolean;
 }
 
 export const SessionsView: React.FC<SessionsViewProps> = ({
   sessions,
+  totalSessionsCount,
   trustees,
   representatives,
   filters,
@@ -36,6 +39,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   onOpenNewSession,
   onEditSession,
   onDeleteSession,
+  onOpenSharePdf,
   isReadOnlyShared = false,
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -51,6 +55,9 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
         onChange={onFiltersChange}
         trustees={trustees}
         representatives={representatives}
+        scopeLabel="جلسات"
+        resultCount={sessions.length}
+        totalCount={totalSessionsCount}
       />
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -63,6 +70,8 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
               نمایش {toPersianDigits(sessions.length)} جلسه بر اساس فیلترهای فعال
             </p>
           </div>
+          <div className="flex items-center gap-2">
+          {onOpenSharePdf && <button type="button" onClick={onOpenSharePdf} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"><Share2 className="w-4 h-4" /> گزارش و اشتراک‌گذاری این بخش</button>}
           {!isReadOnlyShared && (
             <button
               type="button"
@@ -73,6 +82,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
               ثبت جلسه جدید
             </button>
           )}
+          </div>
         </div>
 
         {sessions.length === 0 ? (
@@ -100,7 +110,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-600">
                   <th className="py-3 px-4">تاریخ (شمسی)</th>
-                  <th className="py-3 px-4">کارگروه</th>
+                  <th className="py-3 px-4">نوع جلسه / کارگروه</th>
                   <th className="py-3 px-4">ساعت و مدت</th>
                   <th className="py-3 px-4">موضوع و گزارش جلسه</th>
                   <th className="py-3 px-4">نمایندگان حاضر و عضو هیئت‌امنا</th>

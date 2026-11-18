@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Check, Pencil, Plus, Share2, Trash2, UserPlus } from 'lucide-react';
 import {
   CommitteeId,
   Representative,
@@ -20,6 +20,7 @@ interface DirectoryViewProps {
   isReadOnlyShared?: boolean;
   usedCommitteeIds?: string[];
   onCommitteesChange?: () => void;
+  onOpenShare?: () => void;
 }
 
 export const DirectoryView: React.FC<DirectoryViewProps> = ({
@@ -34,6 +35,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   isReadOnlyShared = false,
   usedCommitteeIds = [],
   onCommitteesChange,
+  onOpenShare,
 }) => {
   // Trustee form state
   const [editingTrusteeId, setEditingTrusteeId] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   const [trusteeError, setTrusteeError] = useState('');
   const [committeeName, setCommitteeName] = useState('');
   const [committeeDescription, setCommitteeDescription] = useState('');
+  const [committeeCategory, setCommitteeCategory] = useState<'کارگروه' | 'کمیته' | 'نشست'>('کارگروه');
   const [editingCommitteeId, setEditingCommitteeId] = useState<string | null>(null);
   const [committeeError, setCommitteeError] = useState('');
 
@@ -61,21 +64,22 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
     e.preventDefault();
     if (committeeName.trim().length < 2) { setCommitteeError('نام کارگروه را وارد کنید.'); return; }
     const next = COMMITTEES.map((c) => c.id === editingCommitteeId
-      ? { ...c, name: committeeName.trim(), description: committeeDescription.trim() }
+      ? { ...c, name: committeeName.trim(), description: committeeDescription.trim(), category: committeeCategory }
       : c);
     if (!editingCommitteeId) next.push({
       id: `committee-${Date.now()}`,
       name: committeeName.trim(),
       description: committeeDescription.trim(),
       accentColor: '#0F766E',
+      category: committeeCategory,
     });
     persistCommittees(next);
-    setCommitteeName(''); setCommitteeDescription(''); setEditingCommitteeId(null); setCommitteeError('');
+    setCommitteeName(''); setCommitteeDescription(''); setCommitteeCategory('کارگروه'); setEditingCommitteeId(null); setCommitteeError('');
     onCommitteesChange?.();
   };
 
   const editCommittee = (committee: (typeof COMMITTEES)[number]) => {
-    setEditingCommitteeId(committee.id); setCommitteeName(committee.name); setCommitteeDescription(committee.description);
+    setEditingCommitteeId(committee.id); setCommitteeName(committee.name); setCommitteeDescription(committee.description); setCommitteeCategory(committee.category ?? 'کارگروه');
   };
 
   const deleteCommittee = (id: string) => {
@@ -165,12 +169,11 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
     <div className="space-y-6">
       {/* 4 Committees Overview */}
       <section>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><h2 className="text-base font-semibold text-slate-900">کارگروه‌های تخصصی و نمایندگان منصوب</h2>{!isReadOnlyShared && <form onSubmit={saveCommittee} className="flex flex-wrap gap-2"><input value={committeeName} onChange={(e) => setCommitteeName(e.target.value)} placeholder="نام کارگروه جدید / ویرایش" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><input value={committeeDescription} onChange={(e) => setCommitteeDescription(e.target.value)} placeholder="شرح حوزه فعالیت" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><button className="rounded-lg bg-teal-700 px-3 py-2 text-xs text-white">{editingCommitteeId ? 'ذخیره ویرایش' : 'افزودن کارگروه'}</button>{editingCommitteeId && <button type="button" onClick={() => {setEditingCommitteeId(null);setCommitteeName('');setCommitteeDescription('');}} className="rounded-lg border px-3 py-2 text-xs">انصراف</button>}</form>}</div>{committeeError && <p className="mb-2 text-xs text-red-600">{committeeError}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3"><div className="flex items-center gap-2"><h2 className="text-base font-semibold text-slate-900">کارگروه‌ها، کمیته‌ها و نشست‌ها</h2>{onOpenShare && <button type="button" onClick={onOpenShare} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"><Share2 className="w-3.5 h-3.5" /> گزارش و اشتراک‌گذاری این بخش</button>}</div>{!isReadOnlyShared && <form onSubmit={saveCommittee} className="flex flex-wrap gap-2"><select value={committeeCategory} onChange={(e) => setCommitteeCategory(e.target.value as 'کارگروه' | 'کمیته' | 'نشست')} className="rounded-lg border border-slate-200 px-3 py-2 text-xs"><option>کارگروه</option><option>کمیته</option><option>نشست</option></select><input value={committeeName} onChange={(e) => setCommitteeName(e.target.value)} placeholder="نام کارگروه / کمیته / نشست" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><input value={committeeDescription} onChange={(e) => setCommitteeDescription(e.target.value)} placeholder="شرح حوزه فعالیت" className="rounded-lg border border-slate-200 px-3 py-2 text-xs" /><button className="rounded-lg bg-teal-700 px-3 py-2 text-xs text-white">{editingCommitteeId ? 'ذخیره ویرایش' : 'افزودن مورد'}</button>{editingCommitteeId && <button type="button" onClick={() => {setEditingCommitteeId(null);setCommitteeName('');setCommitteeDescription('');setCommitteeCategory('کارگروه');}} className="rounded-lg border px-3 py-2 text-xs">انصراف</button>}</form>}</div>{committeeError && <p className="mb-2 text-xs text-red-600">{committeeError}</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {COMMITTEES.map((committee) => {
-            const members = representatives.filter((r) =>
-              r.committeeIds.includes(committee.id)
-            );
+            const isAdHoc = committee.category === 'کمیته' || committee.category === 'نشست';
+            const members = isAdHoc ? [] : representatives.filter((r) => r.committeeIds.includes(committee.id));
             return (
               <div
                 key={committee.id}
@@ -182,17 +185,17 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                       className="text-sm font-bold"
                       style={{ color: committee.accentColor }}
                     >
-                      {committee.name}
+                      {committee.category && committee.category !== 'کارگروه' ? `${committee.category} · ${committee.name}` : committee.name}
                     </h3>
                     <p className="text-xs text-slate-500 mt-1">{committee.description}</p>
                   </div>
-                  <div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">{toPersianDigits(members.length)} نماینده</span>{!isReadOnlyShared && <><button type="button" onClick={() => editCommittee(committee)} className="text-xs text-teal-700">ویرایش</button><button type="button" onClick={() => deleteCommittee(committee.id)} className="text-xs text-red-600">حذف</button></>}</div>
+                  <div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">{isAdHoc ? 'بدون اعضای ثابت' : `${toPersianDigits(members.length)} نماینده`}</span>{!isReadOnlyShared && <><button type="button" onClick={() => editCommittee(committee)} className="text-xs text-teal-700">ویرایش</button><button type="button" onClick={() => deleteCommittee(committee.id)} className="text-xs text-red-600">حذف</button></>}</div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
                   {members.length === 0 ? (
                     <p className="text-xs text-slate-400">
-                      هنوز نماینده‌ای در این کارگروه ثبت نشده است.
+                      {isAdHoc ? 'مدعوین و نمایندگان در زمان ثبت هر جلسه به‌صورت موردی انتخاب می‌شوند.' : 'هنوز نماینده‌ای در این کارگروه ثبت نشده است.'}
                     </p>
                   ) : (
                     members.map((rep) => {

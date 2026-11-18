@@ -4,4 +4,4 @@ interface Window {
   };
 }
 
-interface Window { desktopPrint?: () => void; }
+interface Window { desktopPrint?: () => void; desktopShare?: (text: string) => void; desktopPrintPreview?: (html: string) => Promise<void>; }

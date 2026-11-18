@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -7,7 +7,21 @@ const STORAGE_FILE = () => path.join(app.getPath('userData'), 'database.json');
 function readStore() {
   try {
     const file = STORAGE_FILE();
-    if (!fs.existsSync(file)) return {};
+    if (!fs.existsSync(file)) {
+      // Preserve the database created by the previous installer name.
+      const legacyFiles = [
+        path.join(app.getPath('appData'), 'سامانه مدیریت جلسات کارگروه‌ها', 'database.json'),
+        path.join(app.getPath('appData'), 'مدیریت کارگروه‌ها', 'database.json'),
+        path.join(app.getPath('appData'), 'j-heyatomana', 'database.json')
+      ];
+      const legacyFile = legacyFiles.find((candidate) => fs.existsSync(candidate));
+      if (legacyFile) {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.copyFileSync(legacyFile, file);
+      } else {
+        return {};
+      }
+    }
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   } catch (error) {
@@ -26,6 +40,8 @@ function writeStore(value) {
 }
 
 let store = {};
+
+ipcMain.on('desktop-share', (_event, text) => { clipboard.writeText(String(text ?? '')); });
 
 ipcMain.on('desktop-print', (event) => {
   const target = BrowserWindow.fromWebContents(event.sender);
@@ -64,6 +80,20 @@ ipcMain.on('desktop-store:clear', (event) => {
 
 ipcMain.on('desktop-store:keys', (event) => {
   event.returnValue = Object.keys(store);
+});
+
+ipcMain.handle('desktop-print-preview', async (event, html) => {
+  const preview = new BrowserWindow({ width: 1100, height: 850, show: false, autoHideMenuBar: true, webPreferences: { contextIsolation: true, nodeIntegration: false } });
+  const safeHtml = String(html ?? '');
+  await preview.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(safeHtml));
+  try {
+    const pdf = await preview.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0.35, bottom: 0.35, left: 0.35, right: 0.35 } });
+    const pdfPath = path.join(app.getPath('temp'), `heyatomana-report-${Date.now()}.pdf`);
+    fs.writeFileSync(pdfPath, pdf);
+    const openError = await shell.openPath(pdfPath);
+    if (openError) console.error('Could not open PDF preview:', openError);
+    preview.close();
+  } catch (error) { console.error('PDF preview failed:', error); preview.close(); }
 });
 
 function createWindow() {
