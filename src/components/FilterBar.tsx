@@ -61,6 +61,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const labelClass = 'mb-1 block text-[11px] font-medium text-slate-600';
   const activeLabels = [
     normalized.searchQuery ? { label: 'جستجو: ' + normalized.searchQuery, key: 'searchQuery' as const } : null,
+    normalized.searchMode !== 'all' ? { label: 'روش: ' + (normalized.searchMode === 'any' ? 'هر واژه' : 'عبارت دقیق'), key: 'searchMode' as const } : null,
+    normalized.searchField !== 'all' ? { label: 'حوزه: ' + normalized.searchField, key: 'searchField' as const } : null,
     normalized.committeeId !== 'all' ? { label: 'جلسه: ' + (committees.find((x) => x.id === normalized.committeeId)?.name ?? normalized.committeeId), key: 'committeeId' as const } : null,
     normalized.committeeCategory !== 'all' ? { label: 'دسته: ' + normalized.committeeCategory, key: 'committeeCategory' as const } : null,
     normalized.trusteeId !== 'all' ? { label: 'عضو: ' + (trustees.find((x) => x.id === normalized.trusteeId)?.fullName ?? ''), key: 'trusteeId' as const } : null,
@@ -83,7 +85,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           <div className="rounded-lg bg-teal-50 p-2 text-teal-700"><Search className="h-4 w-4" /></div>
           <div>
             <h3 className="text-sm font-bold text-slate-800">جستجو و فیلتر هوشمند {scopeLabel}</h3>
-            <p className="text-[11px] text-slate-500">جستجوی چندعبارتی، عبارت داخل گیومه، حذف با - و جستجوی حوزه‌ای مثل نماینده:نام یا موضوع:عبارت</p>
+            <p className="text-[11px] text-slate-500">جستجوی چندعبارتی، گیومه برای عبارت، OR برای «یا»، - برای حذف و حوزه‌هایی مثل نماینده:نام یا موضوع:عبارت</p>
           </div>
         </div>
         {hasActiveFilters && <button type="button" onClick={() => onChange(DEFAULT_FILTERS)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"><RotateCcw className="h-3.5 w-3.5" />پاک‌کردن فیلترها</button>}
