@@ -20,6 +20,7 @@ import { FilterBar } from './FilterBar';
 
 interface ReportsViewProps {
   sessions: import('../types').MeetingSession[];
+  totalSessionsCount: number;
   repStats: RepresentativeStat[];
   trusteeStats: TrusteeStat[];
   committeeStats: CommitteeStat[];
@@ -35,6 +36,7 @@ type ReportSubTab = 'by-representative' | 'by-trustee' | 'by-committee';
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   sessions,
+  totalSessionsCount,
   repStats,
   trusteeStats,
   committeeStats,
@@ -55,6 +57,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         trustees={trustees}
         representatives={representatives}
         scopeLabel="گزارش حضور"
+        resultCount={sessions.length}
+        totalCount={totalSessionsCount}
       />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
