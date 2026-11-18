@@ -62,12 +62,23 @@ function readSharedFilterState(): FilterState {
     (Object.keys(DEFAULT_FILTERS) as Array<keyof FilterState>).forEach((key) => {
       const candidate = parsed[key];
       if (typeof candidate === typeof DEFAULT_FILTERS[key]) {
-        (safe as Record<string, unknown>)[key] = candidate;
+        (safe as unknown as Record<string, unknown>)[key] = candidate;
       }
     });
     return safe;
   } catch {
     return DEFAULT_FILTERS;
+  }
+}
+
+function readSharedParts(): Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>> {
+  const allowed = ['summary', 'trustees', 'representatives', 'committees', 'sessions'] as const;
+  try {
+    const raw = new URLSearchParams(window.location.search).get('parts') ?? '';
+    const selected = raw.split(',').filter((item): item is typeof allowed[number] => allowed.includes(item as typeof allowed[number]));
+    return selected.length ? Object.fromEntries(selected.map((item) => [item, true])) : { summary: true };
+  } catch {
+    return { summary: true };
   }
 }
 
@@ -141,7 +152,7 @@ export default function App() {
     null
   );
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [shareParts, setShareParts] = useState<Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>>({ summary: true });
+  const [shareParts, setShareParts] = useState<Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>>(() => readSharedParts());
   const [shareScope, setShareScope] = useState<ActiveTab>('dashboard');
   const [backupModalOpen, setBackupModalOpen] = useState(false);
 
