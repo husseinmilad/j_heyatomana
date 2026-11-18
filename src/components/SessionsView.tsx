@@ -17,6 +17,7 @@ import { FilterBar } from './FilterBar';
 
 interface SessionsViewProps {
   sessions: MeetingSession[];
+  totalSessionsCount: number;
   trustees: Trustee[];
   representatives: Representative[];
   filters: FilterState;
@@ -30,6 +31,7 @@ interface SessionsViewProps {
 
 export const SessionsView: React.FC<SessionsViewProps> = ({
   sessions,
+  totalSessionsCount,
   trustees,
   representatives,
   filters,
@@ -54,6 +56,8 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
         trustees={trustees}
         representatives={representatives}
         scopeLabel="جلسات"
+        resultCount={sessions.length}
+        totalCount={totalSessionsCount}
       />
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
