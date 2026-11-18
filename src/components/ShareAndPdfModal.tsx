@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ActiveTab,
   CommitteeStat,
   MeetingSession,
   Representative,
@@ -39,6 +40,7 @@ interface ShareAndPdfModalProps {
   initialParts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>;
   scopeTitle?: string;
   filterSummary?: string;
+  shareScope?: ActiveTab;
 }
 
 export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
@@ -54,6 +56,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   initialParts,
   scopeTitle = 'گزارش جلسات',
   filterSummary = 'بدون فیلتر',
+  shareScope = 'dashboard',
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
   const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, committees: true, sessions: true });
@@ -92,6 +95,8 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
+    url.searchParams.set('view', shareScope);
+    url.searchParams.set('criteria', filterSummary);
     return url.toString();
   };
 
@@ -160,6 +165,14 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
             <p className="text-xs text-slate-500 mt-0.5">
               نسخه رسمی قابل چاپ با فونت وزیر، اشتراک‌گذاری متنی یا لینک گزارش
             </p>
+          </div>
+          <div className="no-print mx-6 mt-3 rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2 text-xs text-teal-900">
+            <div className="font-semibold">خروجی اختصاصی: {scopeTitle}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-teal-800">
+              <span>{toPersianDigits(sessions.length)} جلسه منطبق با فیلترها</span>
+              <span>شرایط: {filterSummary}</span>
+            </div>
+            <p className="mt-1 text-[10px] text-teal-700">متن، فایل PDF، اکسل و لینک اشتراک فقط بر اساس نتایج همین صفحه تهیه می‌شوند.</p>
           </div>
           <div className="no-print flex flex-wrap gap-3 px-6 py-3 border-b border-slate-200 text-xs text-slate-700"><span className="font-semibold">بخش‌های خروجی:</span><label><input type="checkbox" checked={printParts.summary} onChange={(e) => setPrintParts((p) => ({ ...p, summary: e.target.checked }))} /> خلاصه</label><label><input type="checkbox" checked={printParts.trustees} onChange={(e) => setPrintParts((p) => ({ ...p, trustees: e.target.checked }))} /> اعضای هیئت‌امنا</label><label><input type="checkbox" checked={printParts.representatives} onChange={(e) => setPrintParts((p) => ({ ...p, representatives: e.target.checked }))} /> نمایندگان</label><label><input type="checkbox" checked={printParts.committees} onChange={(e) => setPrintParts((p) => ({ ...p, committees: e.target.checked }))} /> کارگروه‌ها</label><label><input type="checkbox" checked={printParts.sessions} onChange={(e) => setPrintParts((p) => ({ ...p, sessions: e.target.checked }))} /> فهرست جلسات</label></div>
           <div className="flex flex-wrap items-center gap-2">
