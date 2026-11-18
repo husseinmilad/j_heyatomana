@@ -224,7 +224,7 @@ export default function App() {
 
   const openShareFor = (parts: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>, scope: ActiveTab = activeTab) => {
     setShareScope(scope);
-    setShareParts(parts);
+    setShareParts(isSharedMode && Object.keys(shareParts).length ? shareParts : parts);
     setShareModalOpen(true);
   };
 
