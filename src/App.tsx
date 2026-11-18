@@ -136,7 +136,7 @@ export default function App() {
   const hasActiveFilters = filters.searchQuery.trim() !== '' || filters.committeeId !== 'all' || filters.trusteeId !== 'all' || filters.representativeId !== 'all' || filters.dateFrom !== '' || filters.dateTo !== '';
 
   const filteredSessions = useMemo(
-    () => filterSessions(db.sessions, filters, db.representatives),
+    () => filterSessions(db.sessions, filters, db.representatives, db.trustees),
     [db.sessions, filters, db.representatives]
   );
 
