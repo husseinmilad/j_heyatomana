@@ -19,6 +19,7 @@ import {
 import {
   COMMITTEE_MAP,
   getAttendanceMinutes,
+  getEffectiveTrusteeId,
   encodeSharePayload,
   formatMinutesToClock,
   formatMinutesToPersian,
@@ -36,6 +37,8 @@ interface ShareAndPdfModalProps {
   committeeStats: CommitteeStat[];
   onExportExcel: () => void;
   initialParts?: Partial<Record<'summary' | 'trustees' | 'representatives' | 'committees' | 'sessions', boolean>>;
+  scopeTitle?: string;
+  filterSummary?: string;
 }
 
 export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
@@ -49,6 +52,8 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   committeeStats,
   onExportExcel,
   initialParts,
+  scopeTitle = 'گزارش جلسات',
+  filterSummary = 'بدون فیلتر',
 }) => {
   const [copiedType, setCopiedType] = useState<'text' | 'link' | null>(null);
   const [printParts, setPrintParts] = useState({ summary: true, trustees: true, representatives: true, committees: true, sessions: true });
@@ -59,9 +64,14 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   const today = getTodayJalali().formatted;
   const totalSessionMins = sessions.reduce((s, x) => s + x.durationMinutes, 0);
   const totalPersonMins = repStats.reduce((s, r) => s + r.totalMinutes, 0);
+  const matchingRepresentativeIds = new Set(sessions.flatMap((session) => session.attendees.map((a) => a.representativeId)));
+  const matchingRepresentatives = representatives.filter((rep) => matchingRepresentativeIds.has(rep.id));
+  const matchingTrusteeIds = new Set<string>();
+  sessions.forEach((session) => session.attendees.forEach((att) => { const rep = representatives.find((item) => item.id === att.representativeId); if (rep) { const trusteeId = getEffectiveTrusteeId(rep, session.committeeId); if (trusteeId) matchingTrusteeIds.add(trusteeId); } }));
+  const matchingTrustees = trustees.filter((trustee) => matchingTrusteeIds.has(trustee.id));
 
   const buildSelectedShareText = () => {
-    const lines: string[] = [`گزارش جلسات هیئت‌امنای سازمان تأمین اجتماعی و صندوق‌های تابعه · ${toPersianDigits(today)}`];
+    const lines: string[] = [`گزارش ${scopeTitle} · سازمان تأمین اجتماعی و صندوق‌های تابعه · ${toPersianDigits(today)}`, `دامنه نتایج: ${filterSummary}`, `تعداد نتایج منطبق: ${toPersianDigits(sessions.length)} جلسه`];
     if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
     if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`), 'جزئیات نمایندگان هر عضو:', ...trusteeStats.flatMap((st) => repStats.filter((r) => r.representative.trusteeId === st.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(st.trustee.id)).map((r) => { const attended = sessions.filter((s) => s.attendees.some((a) => a.representativeId === r.representative.id && (r.representative.committeeTrusteeOverrides?.[s.committeeId] ?? r.representative.trusteeId) === st.trustee.id)); const mins = attended.reduce((sum, s) => sum + getAttendanceMinutes(s, s.attendees.find((a) => a.representativeId === r.representative.id)!), 0); return `${st.trustee.fullName} ← ${r.representative.fullName}: ${toPersianDigits(attended.length)} جلسه · ${toPersianDigits(new Set(attended.map((s) => s.jalaliDate)).size)} روز · ${formatMinutesToPersian(mins)}`; })));
     if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
@@ -74,8 +84,8 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     const needsSessions = printParts.summary || printParts.committees || printParts.sessions || printParts.trustees || printParts.representatives;
     const needsPeople = printParts.trustees || printParts.representatives;
     const encoded = encodeSharePayload({
-      trustees: needsPeople ? trustees : [],
-      representatives: needsPeople ? representatives : [],
+      trustees: needsPeople ? matchingTrustees : [],
+      representatives: needsPeople ? matchingRepresentatives : [],
       sessions: needsSessions ? sessions : [],
     });
     const url = new URL(window.location.href);
@@ -221,11 +231,10 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b-2 border-slate-900">
             <div>
               <h1 className="text-xl font-extrabold text-slate-900">
-                گزارش جلسات هیئت‌امنای سازمان تأمین اجتماعی و صندوق‌های تابعه
+                گزارش {scopeTitle} · هیئت‌امنای سازمان تأمین اجتماعی و صندوق‌های تابعه
               </h1>
-              <p className="text-xs text-slate-600 mt-1">
-                حسابرسی و بودجه · اقتصاد و سرمایه‌گذاری · بیمه و محاسبات اکچوئری · بهداشت و درمان
-              </p>
+              <p className="text-xs text-slate-600 mt-1">فقط نتایج منطبق با جستجوها و فیلترهای فعال</p>
+              <p className="mt-1 text-[10px] leading-5 text-slate-500">فیلترهای اعمال‌شده: {filterSummary}</p>
             </div>
             <div className="text-left text-xs text-slate-600 tabular-nums">
               <p>
@@ -314,7 +323,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
             <h4 className="text-xs font-bold text-slate-800 mt-3 mb-1">جزئیات تعداد جلسات و ساعات حضور نمایندگان هر عضو</h4>
             <table className="w-full text-right border-collapse border border-slate-200 text-[10px]">
               <thead><tr className="bg-slate-100 text-slate-700"><th className="border border-slate-200 py-1 px-2">عضو هیئت‌امنا</th><th className="border border-slate-200 py-1 px-2">نماینده</th><th className="border border-slate-200 py-1 px-2">جلسات</th><th className="border border-slate-200 py-1 px-2">روز حضور</th><th className="border border-slate-200 py-1 px-2">مدت حضور</th></tr></thead>
-              <tbody>{trusteeStats.flatMap((st) => repStats.filter((r) => r.representative.trusteeId === st.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(st.trustee.id)).map((r) => { const attended = sessions.filter((s) => s.attendees.some((a) => a.representativeId === r.representative.id && (r.representative.committeeTrusteeOverrides?.[s.committeeId] ?? r.representative.trusteeId) === st.trustee.id)); const mins = attended.reduce((sum, s) => sum + (s.attendees.find((a) => a.representativeId === r.representative.id)?.durationMinutes || s.durationMinutes), 0); return <tr key={st.trustee.id + ':' + r.representative.id}><td className="border border-slate-200 py-1 px-2">{st.trustee.fullName}</td><td className="border border-slate-200 py-1 px-2">{r.representative.fullName}</td><td className="border border-slate-200 py-1 px-2">{toPersianDigits(attended.length)}</td><td className="border border-slate-200 py-1 px-2">{toPersianDigits(new Set(attended.map((s) => s.jalaliDate)).size)}</td><td className="border border-slate-200 py-1 px-2">{formatMinutesToPersian(mins)}</td></tr>; }))}</tbody>
+              <tbody>{trusteeStats.flatMap((st) => repStats.filter((r) => r.representative.trusteeId === st.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(st.trustee.id)).map((r) => { const attended = sessions.filter((s) => s.attendees.some((a) => a.representativeId === r.representative.id && (r.representative.committeeTrusteeOverrides?.[s.committeeId] ?? r.representative.trusteeId) === st.trustee.id)); const mins = attended.reduce((sum, s) => sum + getAttendanceMinutes(s, s.attendees.find((a) => a.representativeId === r.representative.id)!), 0); return <tr key={st.trustee.id + ':' + r.representative.id}><td className="border border-slate-200 py-1 px-2">{st.trustee.fullName}</td><td className="border border-slate-200 py-1 px-2">{r.representative.fullName}</td><td className="border border-slate-200 py-1 px-2">{toPersianDigits(attended.length)}</td><td className="border border-slate-200 py-1 px-2">{toPersianDigits(new Set(attended.map((s) => s.jalaliDate)).size)}</td><td className="border border-slate-200 py-1 px-2">{formatMinutesToPersian(mins)}</td></tr>; }))}</tbody>
             </table>
           </div>
 
