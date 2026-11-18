@@ -89,13 +89,11 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   };
 
   const buildShareUrl = () => {
-    const needsSessions = printParts.summary || printParts.committees || printParts.sessions || printParts.trustees || printParts.representatives;
-    const needsPeople = needsSessions;
     const encoded = encodeSharePayload({
-      trustees: needsPeople ? matchingTrustees : [],
-      representatives: needsPeople ? matchingRepresentatives : [],
-      // Attachments are excluded from URL shares: they are not part of report data and can expose documents or create huge links.
-      sessions: needsSessions ? sessions.map(({ attachmentData: _attachmentData, ...session }) => session) : [],
+      trustees: matchingTrustees,
+      representatives: matchingRepresentatives,
+      // Always include the filtered records needed to render the shared page. Attachments are excluded from URL shares.
+      sessions: sessions.map(({ attachmentData: _attachmentData, ...session }) => session),
     });
     const url = new URL(window.location.href);
     url.searchParams.set('share', encoded);
@@ -104,7 +102,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
     const filterBytes = new TextEncoder().encode(JSON.stringify(filterState ?? {}));
     let filterBinary = '';
     for (let i = 0; i < filterBytes.length; i += 1) filterBinary += String.fromCharCode(filterBytes[i]);
-    url.searchParams.set('filters', btoa(filterBinary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, ''));
+    url.searchParams.set('filters', btoa(filterBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
     url.searchParams.set('parts', Object.entries(printParts).filter(([, enabled]) => enabled).map(([key]) => key).join(','));
     return url.toString();
   };
