@@ -10,6 +10,8 @@ import {
 } from '../types';
 import {
   COMMITTEES,
+  getAttendanceMinutes,
+  getEffectiveTrusteeId,
   formatMinutesToClock,
   formatMinutesToPersian,
 } from '../utils/analytics';
@@ -17,6 +19,7 @@ import { toPersianDigits } from '../utils/jalali';
 import { FilterBar } from './FilterBar';
 
 interface ReportsViewProps {
+  sessions: import('../types').MeetingSession[];
   repStats: RepresentativeStat[];
   trusteeStats: TrusteeStat[];
   committeeStats: CommitteeStat[];
@@ -31,6 +34,7 @@ interface ReportsViewProps {
 type ReportSubTab = 'by-representative' | 'by-trustee' | 'by-committee';
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
+  sessions,
   repStats,
   trusteeStats,
   committeeStats,
@@ -51,6 +55,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         trustees={trustees}
         representatives={representatives}
       />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">جلسات در بازهٔ فیلترشده</div><div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">{toPersianDigits(sessions.length)}</div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">مجموع زمان برگزاری</div><div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">{formatMinutesToClock(sessions.reduce((sum, item) => sum + item.durationMinutes, 0))} <span className="text-xs font-normal">ساعت</span></div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">نفر ـ ساعت حضور</div><div className="mt-1 text-xl font-bold text-teal-800 tabular-nums">{formatMinutesToClock(repStats.reduce((sum, item) => sum + item.totalMinutes, 0))} <span className="text-xs font-normal">ساعت</span></div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-[11px] text-slate-500">افراد دارای حضور ثبت‌شده</div><div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">{toPersianDigits(repStats.filter(item => item.sessionCount > 0).length)}</div></div>
+      </div>
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 border-b border-slate-200">
@@ -291,6 +302,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Detailed representative breakdown nested under each trustee */}
+        {subTab === 'by-trustee' && (
+          <div className="border-t border-slate-200 p-4 sm:p-5 space-y-3">
+            <div><h3 className="text-sm font-bold text-slate-900">جزئیات عملکرد نمایندگان زیرمجموعهٔ هر عضو هیئت‌امنا</h3><p className="text-xs text-slate-500 mt-1">تعداد جلسه، روز حضور و مدت حضور هر نماینده با لحاظ انتساب او در همان کارگروه محاسبه شده است.</p></div>
+            <div className="overflow-x-auto"><table className="w-full text-right border-collapse text-xs">
+              <thead><tr className="bg-slate-50 text-slate-600 border-y border-slate-200"><th className="px-3 py-2">عضو هیئت‌امنا</th><th className="px-3 py-2">نماینده</th><th className="px-3 py-2 text-left">تعداد جلسات</th><th className="px-3 py-2 text-left">روزهای حضور</th><th className="px-3 py-2 text-left">ساعت حضور</th><th className="px-3 py-2">عناوین جلسات</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">{trusteeStats.flatMap((t) => repStats.filter((r) => r.representative.trusteeId === t.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(t.trustee.id)).map((r) => {
+                const attended = sessions.filter((session) => session.attendees.some((a) => a.representativeId === r.representative.id && getEffectiveTrusteeId(r.representative, session.committeeId) === t.trustee.id));
+                const minutes = attended.reduce((sum, session) => { const attendance = session.attendees.find((a) => a.representativeId === r.representative.id)!; return sum + getAttendanceMinutes(session, attendance); }, 0);
+                const days = new Set(attended.map((session) => session.jalaliDate)).size;
+                return <tr key={t.trustee.id + ':' + r.representative.id}><td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap">{t.trustee.fullName}</td><td className="px-3 py-2">{r.representative.fullName}</td><td className="px-3 py-2 text-left tabular-nums">{toPersianDigits(attended.length)}</td><td className="px-3 py-2 text-left tabular-nums">{toPersianDigits(days)}</td><td className="px-3 py-2 text-left tabular-nums font-semibold">{formatMinutesToPersian(minutes)}</td><td className="px-3 py-2 text-slate-500 min-w-64">{attended.map((s) => s.jalaliDate + ' · ' + s.topic).join('؛ ') || '—'}</td></tr>;
+              }))}</tbody>
+            </table></div>
           </div>
         )}
 
