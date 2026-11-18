@@ -249,7 +249,7 @@ function parseSearchTokens(raw: string) {
     'موضوع': 'topic', 'topic': 'topic',
     'گزارش': 'summary', 'summary': 'summary',
     'نماینده': 'people', 'افراد': 'people', 'people': 'people',
-    'عضو': 'people', 'هیئت‌امنا': 'people', 'trustee': 'people',
+    'عضو': 'people', 'هیئت‌امنا': 'people', 'هیئت امنا': 'people', 'trustee': 'people',
     'کارگروه': 'committee', 'کمیته': 'committee', 'نشست': 'committee', 'committee': 'committee',
     'نامه': 'letter', 'شماره': 'letter', 'letter': 'letter',
     'پیوست': 'attachment', 'attachment': 'attachment',
@@ -262,7 +262,7 @@ function parseSearchTokens(raw: string) {
     const exclude = match[1] === '-';
     const alias = match[2] ? normalizeSearchValue(match[2]) : '';
     let value = (match[3] ?? match[4] ?? match[5] ?? '').trim();
-    if (!value || value.toUpperCase() === 'OR' || value === '|') continue;
+    if (!value || value.toUpperCase() === 'OR' || value === 'یا' || value === '|') continue;
     const field = aliases[alias] ?? null;
     value = normalizeSearchValue(value);
     if (value) tokens.push({ value, field, exclude });
@@ -350,7 +350,7 @@ export function filterSessions(
       };
       const selectedField = normalized.searchField ?? 'all';
       const valueFor = (field: SearchableField | null) => normalizeSearchValue(valuesByField[field ?? selectedField] ?? valuesByField.all);
-      const useAny = normalized.searchMode === 'any' || /\s(?:OR|\|)\s/i.test(normalized.searchQuery ?? '');
+      const useAny = normalized.searchMode === 'any' || /\s(?:OR|یا|\|)\s/i.test(normalized.searchQuery ?? '');
       const positivesMatch = positiveTokens.length === 0 || (useAny
         ? positiveTokens.some((token) => valueFor(token.field).includes(token.value))
         : positiveTokens.every((token) => valueFor(token.field).includes(token.value)));
