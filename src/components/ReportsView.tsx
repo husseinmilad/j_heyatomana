@@ -138,7 +138,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
-        {/* Tab 1: By Representative */}
+        {sessions.length === 0 && (
+        <div role="status" aria-live="polite" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 text-center">
+          <p className="text-sm font-semibold text-amber-900">برای معیارهای جستجو و فیلتر فعلی نتیجه‌ای پیدا نشد.</p>
+          <p className="mt-1 text-xs text-amber-800">فیلترها را تغییر دهید یا پاک کنید تا گزارش‌های حضور دوباره نمایش داده شوند.</p>
+        </div>
+      )}
+
+      {/* Tab 1: By Representative */}
         {subTab === 'by-representative' && (
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
