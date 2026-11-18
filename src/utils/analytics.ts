@@ -356,7 +356,7 @@ export function filterSessions(
         : positiveTokens.every((token) => valueFor(token.field).includes(token.value)));
       if (!positivesMatch) return false;
       if (negativeTokens.some((token) => valueFor(token.field).includes(token.value))) return false;
-      if (normalized.searchMode === 'exact' && positiveTokens.length === 0 && !valueFor(null).includes(query)) return false;
+      // A negative-only query is a valid exclusion search; it has no positive phrase to require.
       if (normalized.searchMode === 'exact' && positiveTokens.length > 0 && positiveTokens.every((token) => token.field === null)) {
         const exactValue = positiveTokens.map((token) => token.value).join(' ');
         if (!valueFor(null).includes(exactValue)) return false;
