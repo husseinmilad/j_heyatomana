@@ -54,6 +54,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         onChange={onFiltersChange}
         trustees={trustees}
         representatives={representatives}
+        scopeLabel="گزارش حضور"
       />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
