@@ -599,6 +599,7 @@ export default function App() {
 
           {activeTab === 'reports' && (
             <ReportsView
+              sessions={filteredSessions}
               repStats={repStats}
               trusteeStats={trusteeStats}
               committeeStats={committeeStats}
@@ -628,6 +629,9 @@ export default function App() {
             />
           )}
         </main>
+        <footer className="no-print border-t border-slate-200 bg-white px-4 py-3 text-center text-[11px] text-slate-500">
+          این سامانه توسط سیدحسین موسوی انتشار یافته است.
+        </footer>
       </div>
 
       {/* Modals */}
