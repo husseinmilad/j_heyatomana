@@ -53,6 +53,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
         onChange={onFiltersChange}
         trustees={trustees}
         representatives={representatives}
+        scopeLabel="جلسات"
       />
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
