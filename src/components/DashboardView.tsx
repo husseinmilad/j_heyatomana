@@ -1,4 +1,5 @@
 import React from 'react';
+import { Share2 } from 'lucide-react';
 import {
   ActiveTab,
   CommitteeStat,
@@ -17,7 +18,7 @@ import {
 } from '../utils/analytics';
 import { formatJalaliReadable, toPersianDigits } from '../utils/jalali';
 import { DashboardCharts } from './DashboardCharts';
-import { FilterBar } from './FilterBar';
+import { DEFAULT_FILTERS, FilterBar } from './FilterBar';
 
 interface DashboardViewProps {
   sessions: MeetingSession[];
@@ -32,6 +33,7 @@ interface DashboardViewProps {
   onNavigate: (tab: ActiveTab) => void;
   onOpenNewSession: () => void;
   onEditSession: (session: MeetingSession) => void;
+  onOpenSharePdf: () => void;
   isReadOnlyShared?: boolean;
 }
 
@@ -48,6 +50,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
   onOpenNewSession,
   onEditSession,
+  onOpenSharePdf,
   isReadOnlyShared = false,
 }) => {
   const totalSessions = sessions.length;
@@ -67,8 +70,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     (a, b) => b.totalSessionMinutes - a.totalSessionMinutes
   )[0];
 
-  const topReps = repStats.slice(0, 5);
-  const recentSessions = sessions.slice(0, 5);
+  const hasActiveFilters = Object.entries({ ...DEFAULT_FILTERS, ...filters }).some(([key, value]) => value !== DEFAULT_FILTERS[key as keyof FilterState] && value !== '' && value !== undefined);
+  const topReps = hasActiveFilters ? repStats : repStats.slice(0, 5);
+  const recentSessions = hasActiveFilters ? sessions : sessions.slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -134,12 +138,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </section>
 
-      {/* Filters */}
+      {/* Search, filters and dashboard-scoped sharing */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-slate-500">{hasActiveFilters ? `نمایش ${toPersianDigits(sessions.length)} نتیجه مطابق فیلترهای داشبورد` : 'نمای کلی همه جلسات ثبت‌شده'}</p>
+        <button type="button" onClick={onOpenSharePdf} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-teal-300 hover:bg-teal-50"><Share2 className="h-4 w-4 text-teal-700" />اشتراک‌گذاری داشبورد و نتایج فیلترشده</button>
+      </div>
       <FilterBar
         filters={filters}
         onChange={onFiltersChange}
         trustees={trustees}
         representatives={representatives}
+        scopeLabel="داشبورد"
       />
 
       {/* Charts */}
