@@ -232,9 +232,11 @@ export function getAttendanceMinutes(
 export function filterSessions(
   sessions: MeetingSession[],
   filters: FilterState,
-  representatives: Representative[]
+  representatives: Representative[],
+  trustees: Trustee[] = []
 ): MeetingSession[] {
   const repMap = new Map(representatives.map((r) => [r.id, r]));
+  const trusteeMap = new Map(trustees.map((t) => [t.id, t]));
   const normalizeSearchText = (value: string) => toEnglishDigits(value).normalize('NFKC').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim().toLocaleLowerCase('fa');
   const query = normalizeSearchText(filters.searchQuery);
 
@@ -278,12 +280,13 @@ export function filterSessions(
       }
 
       if (query) {
-        const committeeName = COMMITTEE_MAP[session.committeeId]?.name ?? '';
-        const attendeeNames = session.attendees
-          .map((a) => repMap.get(a.representativeId)?.fullName ?? '')
-          .join(' ');
+        const committee = COMMITTEE_MAP[session.committeeId];
+        const committeeName = committee?.name ?? '';
+        const attendeeNames = session.attendees.map((a) => repMap.get(a.representativeId)?.fullName ?? '').join(' ');
+        const attendeeRoles = session.attendees.map((a) => repMap.get(a.representativeId)?.roleTitle ?? '').join(' ');
+        const trusteeNames = session.attendees.map((a) => { const rep = repMap.get(a.representativeId); const trusteeId = rep ? getEffectiveTrusteeId(rep, session.committeeId) : ''; return trusteeMap.get(trusteeId)?.fullName ?? ''; }).join(' ');
         const haystack = normalizeSearchText(
-          `${session.topic} ${session.reportSummary} ${committeeName} ${session.jalaliDate} ${session.startTime} ${session.endTime} ${session.letterNumber ?? ''} ${session.attachmentName ?? ''} ${attendeeNames} ${session.attendees.map((a) => repMap.get(a.representativeId)?.roleTitle ?? '').join(' ')}`
+          `${session.topic} ${session.reportSummary} ${committeeName} ${committee?.category ?? ''} ${session.jalaliDate} ${session.startTime} ${session.endTime} ${session.letterNumber ?? ''} ${session.attachmentName ?? ''} ${attendeeNames} ${attendeeRoles} ${trusteeNames}`
         );
         if (!haystack.includes(query)) return false;
       }
