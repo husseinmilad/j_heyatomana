@@ -316,6 +316,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 const attended = sessions.filter((session) => session.attendees.some((a) => a.representativeId === r.representative.id && getEffectiveTrusteeId(r.representative, session.committeeId) === t.trustee.id));
                 const minutes = attended.reduce((sum, session) => { const attendance = session.attendees.find((a) => a.representativeId === r.representative.id)!; return sum + getAttendanceMinutes(session, attendance); }, 0);
                 const days = new Set(attended.map((session) => session.jalaliDate)).size;
+                if (attended.length === 0) return null;
                 return <tr key={t.trustee.id + ':' + r.representative.id}><td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap">{t.trustee.fullName}</td><td className="px-3 py-2">{r.representative.fullName}</td><td className="px-3 py-2 text-left tabular-nums">{toPersianDigits(attended.length)}</td><td className="px-3 py-2 text-left tabular-nums">{toPersianDigits(days)}</td><td className="px-3 py-2 text-left tabular-nums font-semibold">{formatMinutesToPersian(minutes)}</td><td className="px-3 py-2 text-slate-500 min-w-64">{attended.map((s) => s.jalaliDate + ' · ' + s.topic).join('؛ ') || '—'}</td></tr>;
               }))}</tbody>
             </table></div>
