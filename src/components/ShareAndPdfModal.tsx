@@ -64,6 +64,8 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
   const today = getTodayJalali().formatted;
   const totalSessionMins = sessions.reduce((s, x) => s + x.durationMinutes, 0);
   const totalPersonMins = repStats.reduce((s, r) => s + r.totalMinutes, 0);
+  const topRepresentative = [...repStats].sort((a, b) => b.totalMinutes - a.totalMinutes)[0];
+  const mostActiveCommittee = [...committeeStats].sort((a, b) => b.sessionCount - a.sessionCount)[0];
   const matchingRepresentativeIds = new Set(sessions.flatMap((session) => session.attendees.map((a) => a.representativeId)));
   const matchingRepresentatives = representatives.filter((rep) => matchingRepresentativeIds.has(rep.id));
   const matchingTrusteeIds = new Set<string>();
@@ -72,7 +74,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
 
   const buildSelectedShareText = () => {
     const lines: string[] = [`گزارش ${scopeTitle} · سازمان تأمین اجتماعی و صندوق‌های تابعه · ${toPersianDigits(today)}`, `دامنه نتایج: ${filterSummary}`, `تعداد نتایج منطبق: ${toPersianDigits(sessions.length)} جلسه`];
-    if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`);
+    if (printParts.summary) lines.push(`تعداد جلسات: ${toPersianDigits(sessions.length)} · مجموع زمان جلسات: ${formatMinutesToPersian(totalSessionMins)} · نفرساعت حضور: ${formatMinutesToPersian(totalPersonMins)}`, `فعال‌ترین نماینده: ${topRepresentative?.representative.fullName ?? '—'}`, `پرفعالیت‌ترین نوع جلسه: ${mostActiveCommittee?.committee.name ?? '—'}`);
     if (printParts.trustees) lines.push('آمار اعضای هیئت‌امنا:', ...trusteeStats.map((st) => `${st.trustee.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`), 'جزئیات نمایندگان هر عضو:', ...trusteeStats.flatMap((st) => repStats.filter((r) => r.representative.trusteeId === st.trustee.id || Object.values(r.representative.committeeTrusteeOverrides ?? {}).includes(st.trustee.id)).map((r) => { const attended = sessions.filter((s) => s.attendees.some((a) => a.representativeId === r.representative.id && (r.representative.committeeTrusteeOverrides?.[s.committeeId] ?? r.representative.trusteeId) === st.trustee.id)); const mins = attended.reduce((sum, s) => sum + getAttendanceMinutes(s, s.attendees.find((a) => a.representativeId === r.representative.id)!), 0); return `${st.trustee.fullName} ← ${r.representative.fullName}: ${toPersianDigits(attended.length)} جلسه · ${toPersianDigits(new Set(attended.map((s) => s.jalaliDate)).size)} روز · ${formatMinutesToPersian(mins)}`; })));
     if (printParts.representatives) lines.push('آمار نمایندگان:', ...repStats.map((st) => `${st.representative.fullName}: ${toPersianDigits(st.sessionCount)} جلسه · ${toPersianDigits(st.attendanceDays)} روز حضور · ${formatMinutesToPersian(st.totalMinutes)} · ${st.attendedSessionTitles.join('؛ ')}`));
     if (printParts.committees) lines.push('آمار انواع جلسات و کارگروه‌ها:', ...committeeStats.map((st) => `${st.committee.name}: ${toPersianDigits(st.sessionCount)} جلسه · ${formatMinutesToPersian(st.totalSessionMinutes)}`));
@@ -82,7 +84,7 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
 
   const buildShareUrl = () => {
     const needsSessions = printParts.summary || printParts.committees || printParts.sessions || printParts.trustees || printParts.representatives;
-    const needsPeople = printParts.trustees || printParts.representatives;
+    const needsPeople = needsSessions;
     const encoded = encodeSharePayload({
       trustees: needsPeople ? matchingTrustees : [],
       representatives: needsPeople ? matchingRepresentatives : [],
@@ -253,30 +255,15 @@ export const ShareAndPdfModal: React.FC<ShareAndPdfModalProps> = ({
           </div>
 
           {/* Summary Totals */}
-          <div className={printParts.summary ? "grid grid-cols-3 gap-4" : "hidden"}>
-            <div className="rounded-lg border border-slate-200 p-3.5">
-              <span className="text-[11px] text-slate-500 block">
-                تعداد جلسات گزارش
-              </span>
-              <span className="text-lg font-bold text-slate-900 tabular-nums">
-                {toPersianDigits(sessions.length)} جلسه
-              </span>
+          <div className={printParts.summary ? "space-y-3" : "hidden"}>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg border border-slate-200 p-3"><span className="block text-[10px] text-slate-500">تعداد جلسات منطبق</span><strong className="mt-1 block text-base text-slate-900 tabular-nums">{toPersianDigits(sessions.length)} جلسه</strong></div>
+              <div className="rounded-lg border border-slate-200 p-3"><span className="block text-[10px] text-slate-500">مجموع زمان برگزاری</span><strong className="mt-1 block text-base text-slate-900 tabular-nums">{formatMinutesToPersian(totalSessionMins)}</strong></div>
+              <div className="rounded-lg border border-slate-200 p-3"><span className="block text-[10px] text-slate-500">مجموع نفرساعت حضور</span><strong className="mt-1 block text-base text-teal-800 tabular-nums">{formatMinutesToPersian(totalPersonMins)}</strong></div>
             </div>
-            <div className="rounded-lg border border-slate-200 p-3.5">
-              <span className="text-[11px] text-slate-500 block">
-                مجموع ساعات برگزاری
-              </span>
-              <span className="text-lg font-bold text-slate-900 tabular-nums">
-                {formatMinutesToPersian(totalSessionMins)}
-              </span>
-            </div>
-            <div className="rounded-lg border border-slate-200 p-3.5">
-              <span className="text-[11px] text-slate-500 block">
-                مجموع نفر-ساعت حضور
-              </span>
-              <span className="text-lg font-bold text-teal-800 tabular-nums">
-                {formatMinutesToPersian(totalPersonMins)}
-              </span>
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700 grid grid-cols-2 gap-2">
+              <p>فعال‌ترین نماینده: <strong>{topRepresentative?.representative.fullName ?? '—'}</strong></p>
+              <p>پرفعالیت‌ترین نوع جلسه: <strong>{mostActiveCommittee?.committee.name ?? '—'}</strong></p>
             </div>
           </div>
 
