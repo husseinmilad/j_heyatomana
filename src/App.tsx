@@ -585,15 +585,16 @@ export default function App() {
         <main className="no-print flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
           {activeTab === 'dashboard' && (
             <DashboardView
-              sessions={filteredSessions}
+              sessions={dashboardSessions}
               trustees={db.trustees}
               representatives={db.representatives}
-              repStats={repStats}
-              trusteeStats={trusteeStats}
-              committeeStats={committeeStats}
+              repStats={dashboardStats.repStats}
+              trusteeStats={dashboardStats.trusteeStats}
+              committeeStats={dashboardStats.committeeStats}
               monthlyTrend={monthlyTrend}
-              filters={filters}
-              onFiltersChange={setFilters}
+              filters={dashboardFilters}
+              onFiltersChange={setDashboardFilters}
+              onOpenSharePdf={() => openShareFor({ summary: true }, 'dashboard')}
               onNavigate={setActiveTab}
               onOpenNewSession={() => {
                 setEditingSession(null);
@@ -609,11 +610,11 @@ export default function App() {
 
           {activeTab === 'sessions' && (
             <SessionsView
-              sessions={filteredSessions}
+              sessions={sessionList}
               trustees={db.trustees}
               representatives={db.representatives}
-              filters={filters}
-              onFiltersChange={setFilters}
+              filters={sessionsFilters}
+              onFiltersChange={setSessionsFilters}
               onOpenNewSession={() => {
                 setEditingSession(null);
                 setSessionModalOpen(true);
@@ -623,23 +624,23 @@ export default function App() {
                 setSessionModalOpen(true);
               }}
               onDeleteSession={handleDeleteSession}
-              onOpenSharePdf={() => openShareFor({ sessions: true })}
+              onOpenSharePdf={() => openShareFor({ sessions: true }, 'sessions')}
               isReadOnlyShared={isSharedMode}
             />
           )}
 
           {activeTab === 'reports' && (
             <ReportsView
-              sessions={filteredSessions}
-              repStats={repStats}
-              trusteeStats={trusteeStats}
-              committeeStats={committeeStats}
+              sessions={reportSessions}
+              repStats={reportStats.repStats}
+              trusteeStats={reportStats.trusteeStats}
+              committeeStats={reportStats.committeeStats}
               trustees={db.trustees}
               representatives={db.representatives}
-              filters={filters}
-              onFiltersChange={setFilters}
-              onExportExcel={handleExportExcel}
-              onOpenSharePdf={(parts) => openShareFor(parts ?? { trustees: true, representatives: true, committees: true })}
+              filters={reportsFilters}
+              onFiltersChange={setReportsFilters}
+              onExportExcel={() => handleExportExcelFor(reportSessions, reportStats)}
+              onOpenSharePdf={(parts) => openShareFor(parts ?? { trustees: true, representatives: true, committees: true }, 'reports')}
             />
           )}
 
@@ -656,7 +657,7 @@ export default function App() {
               isReadOnlyShared={isSharedMode}
               usedCommitteeIds={[...new Set(db.sessions.map((session) => session.committeeId))]}
               onCommitteesChange={() => { setDb((prev) => ({ ...prev, committees: [...COMMITTEES] })); showToast('فهرست کارگروه‌ها، کمیته‌ها و نشست‌ها ذخیره شد.'); }}
-              onOpenShare={() => openShareFor({ trustees: true, representatives: true, committees: true })}
+              onOpenShare={() => openShareFor({ trustees: true, representatives: true, committees: true }, 'directory')}
             />
           )}
         </main>
@@ -681,14 +682,16 @@ export default function App() {
       <ShareAndPdfModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        sessions={filteredSessions}
+        sessions={shareData.sessions}
         trustees={db.trustees}
         representatives={db.representatives}
-        repStats={repStats}
-        trusteeStats={trusteeStats}
-        committeeStats={committeeStats}
-        onExportExcel={handleExportExcel}
+        repStats={shareData.stats.repStats}
+        trusteeStats={shareData.stats.trusteeStats}
+        committeeStats={shareData.stats.committeeStats}
+        onExportExcel={() => handleExportExcelFor(shareData.sessions, shareData.stats)}
         initialParts={shareParts}
+        scopeTitle={shareData.title}
+        filterSummary={shareData.filterText}
       />
 
       <BackupRestoreModal
