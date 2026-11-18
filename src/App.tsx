@@ -99,7 +99,13 @@ export default function App() {
     initial.isSharedMode
   );
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    if (typeof window !== 'undefined') {
+      const requested = new URLSearchParams(window.location.search).get('view');
+      if (requested === 'dashboard' || requested === 'sessions' || requested === 'reports' || requested === 'directory') return requested;
+    }
+    return 'dashboard';
+  });
   const [dashboardFilters, setDashboardFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sessionsFilters, setSessionsFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [reportsFilters, setReportsFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -588,6 +594,7 @@ export default function App() {
           {activeTab === 'dashboard' && (
             <DashboardView
               sessions={dashboardSessions}
+              totalSessionsCount={db.sessions.length}
               trustees={db.trustees}
               representatives={db.representatives}
               repStats={dashboardStats.repStats}
@@ -613,6 +620,7 @@ export default function App() {
           {activeTab === 'sessions' && (
             <SessionsView
               sessions={sessionList}
+              totalSessionsCount={db.sessions.length}
               trustees={db.trustees}
               representatives={db.representatives}
               filters={sessionsFilters}
@@ -634,6 +642,7 @@ export default function App() {
           {activeTab === 'reports' && (
             <ReportsView
               sessions={reportSessions}
+              totalSessionsCount={db.sessions.length}
               repStats={reportStats.repStats}
               trusteeStats={reportStats.trusteeStats}
               committeeStats={reportStats.committeeStats}
@@ -694,6 +703,7 @@ export default function App() {
         initialParts={shareParts}
         scopeTitle={shareData.title}
         filterSummary={shareData.filterText}
+        shareScope={shareScope}
       />
 
       <BackupRestoreModal
